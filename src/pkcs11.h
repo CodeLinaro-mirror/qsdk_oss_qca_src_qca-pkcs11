@@ -1,3 +1,7 @@
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * All rights reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ */
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
  * Copyright (c) 2018-2020, Linaro Limited
@@ -17,6 +21,22 @@ extern "C" {
 #define CK_PKCS11_VERSION_MAJOR		2
 #define CK_PKCS11_VERSION_MINOR		40
 #define CK_PKCS11_VERSION_PATCH		1
+
+#define CRYPTOKI_VERSION_MAJOR		3
+#define CRYPTOKI_VERSION_MINOR		0
+#define CRYPTOKI_VERSION_AMENDMENT	0
+
+#define CK_TRUE		1
+#define CK_FALSE	0
+
+#ifndef CK_DISABLE_TRUE_FALSE
+#ifndef FALSE
+#define FALSE CK_FALSE
+#endif
+#ifndef TRUE
+#define TRUE CK_TRUE
+#endif
+#endif
 
 typedef unsigned char CK_BYTE;
 typedef unsigned long CK_ULONG;
@@ -1026,7 +1046,7 @@ struct CK_C_INITIALIZE_ARGS {
 	CK_LOCKMUTEX		LockMutex;
 	CK_UNLOCKMUTEX		UnlockMutex;
 	CK_FLAGS		flags;
-	CK_VOID_PTR		reserved;
+	CK_VOID_PTR		pReserved;
 };
 
 /* Flags for field flags of struct ck_c_initialize_args */

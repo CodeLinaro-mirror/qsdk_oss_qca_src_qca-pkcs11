@@ -1,21 +1,22 @@
-// SPDX-License-Identifier: BSD-2-Clause
-/*
- * Copyright (c) 2017-2020, Linaro Limited
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * All rights reserved.
+ * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
-
-#include <pkcs11.h>
+/* SPDX-License-Identifier: BSD-2-Clause */
+/*
+ * Copyright (c) 2018-2020, Linaro Limited
+ */
+#include "pkcs11.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include "cryptoki.h"
+#include "pkcs11_debug.h"
+#include "pkcs11_mech.h"
 
-#include "ck_helpers.h"
-#include "invoke_ta.h"
-#include "pkcs11_processing.h"
-#include "pkcs11_token.h"
-
-static const CK_FUNCTION_LIST libckteec_function_list = {
+static const CK_FUNCTION_LIST pkcs11FunctionList = {
 	.version = {
-		.major = CK_PKCS11_VERSION_MAJOR,
-		.minor = CK_PKCS11_VERSION_MINOR,
+		.major = CRYPTOKI_VERSION_MAJOR,
+		.minor = CRYPTOKI_VERSION_MINOR,
 	},
 	.C_Initialize = C_Initialize,
 	.C_Finalize = C_Finalize,
@@ -87,1387 +88,934 @@ static const CK_FUNCTION_LIST libckteec_function_list = {
 	.C_WaitForSlotEvent = C_WaitForSlotEvent,
 };
 
-static bool lib_initiated(void)
-{
-	return ckteec_invoke_initiated();
-}
+#if 0
+static CK_INTERFACE interface_list[] = {
+    {
+        (CK_UTF8CHAR *)"PKCS 11",
+        &pkcs11FunctionList,
+        CKF_INTERFACE_FORK_SAFE /*XXX*/
+    },
+};
+#endif
 
+/**
+ * \Brief Initializes Cryptoki library
+ * \notes If pInitArgs is a non-NULL_PTR is must dereference to a CK_C_INITIALIZE_ARGS structure
+ */
 CK_RV C_Initialize(CK_VOID_PTR pInitArgs)
 {
-	CK_C_INITIALIZE_ARGS_PTR args = NULL;
-	CK_RV rv = 0;
-
-	if (pInitArgs) {
-		args = (CK_C_INITIALIZE_ARGS_PTR)pInitArgs;
-
-		/* Reserved must be set to NULL in this version of PKCS#11 */
-		if (args->reserved)
-			return CKR_ARGUMENTS_BAD;
-	}
-
-	rv = ckteec_invoke_init();
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CANT_LOCK,
-		     CKR_CRYPTOKI_ALREADY_INITIALIZED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_NEED_TO_CREATE_THREADS, CKR_OK,
-		     CKR_MUTEX_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_init((CK_C_INITIALIZE_ARGS_PTR)pInitArgs));
 }
 
+/**
+ * \brief Clean up miscellaneous Cryptoki-associated resources
+ */
 CK_RV C_Finalize(CK_VOID_PTR pReserved)
 {
-	CK_RV rv = 0;
-
-	/* Reserved must be set to NULL in this version of PKCS#11 */
-	if (pReserved)
-		return CKR_ARGUMENTS_BAD;
-
-	rv = ckteec_invoke_terminate();
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_deinit(pReserved));
 }
 
+/**
+ * \breif Obtains general information about Cryptoki
+ */
 CK_RV C_GetInfo(CK_INFO_PTR pInfo)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_get_info(pInfo);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_get_lib_info(pInfo));
 }
 
+/**
+ * \brief Obtains entry points of Cryptoki library functions
+ */
 CK_RV C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
 {
-	if (!ppFunctionList)
-		return CKR_ARGUMENTS_BAD;
+    PKCS11_DEBUG("\r\n");
+    if (!ppFunctionList)
+    {
+        return CKR_ARGUMENTS_BAD;
+    }
 
-	/* Discard the const attribute when exporting the list address */
-	*ppFunctionList = (void *)&libckteec_function_list;
+    *ppFunctionList = &pkcs11FunctionList;
 
-	return CKR_OK;
+    return CKR_OK;
 }
 
-CK_RV C_GetSlotList(CK_BBOOL tokenPresent,
-		    CK_SLOT_ID_PTR pSlotList,
-		    CK_ULONG_PTR pulCount)
+#if 0
+/**
+ * \brief Obtains information about interface list
+ */
+CK_RV C_GetInterfaceList(CK_INTERFACE_PTR pInterfaceList, CK_ULONG_PTR pulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
+    PKCS11_DEBUG("\r\n");
 
-	if (lib_initiated())
-		rv = ck_slot_get_list(tokenPresent, pSlotList, pulCount);
+    CK_ULONG nmemb;
+    CK_RV rv;
+#if 0
+    if (pulCount == NULL) {
+        rv = CKR_ARGUMENTS_BAD;
+        PKCS11_DEBUG("\r\n");
+        goto ret;
+    }
+    PKCS11_DEBUG("\r\n");
 
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK);
 
-	return rv;
+    nmemb = sizeof(interface_list) / sizeof(interface_list[0]);
+
+    if (pInterfaceList == NULL) {
+        *pulCount = nmemb;
+        rv = CKR_OK;
+        goto ret;
+    }
+    PKCS11_DEBUG("\r\n");
+
+
+    if (*pulCount < nmemb) {
+        *pulCount = nmemb;
+        rv = CKR_BUFFER_TOO_SMALL;
+        goto ret;
+    }
+    PKCS11_DEBUG("\r\n");
+#endif
+
+   pInterfaceList = &interface_list[0];
+   pulCount = sizeof(interface_list) / sizeof(interface_list[0]);
+    //memcpy(pInterfaceList, interface_list, sizeof(interface_list));
+    rv = CKR_OK;
+    PKCS11_DEBUG("\r\n");
+
+ret:
+    return rv;
 }
 
-CK_RV C_GetSlotInfo(CK_SLOT_ID slotID,
-		    CK_SLOT_INFO_PTR pInfo)
+/**
+ * \brief Obtains information about interface
+ */
+CK_RV C_GetInterface(CK_UTF8CHAR_PTR pInterfaceName, CK_VERSION_PTR pVersion,
+		     CK_INTERFACE_PTR ppInterface, CK_FLAGS flags)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
+    PKCS11_DEBUG("\r\n");
 
-	if (lib_initiated())
-		rv = ck_slot_get_info(slotID, pInfo);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR,
-		     CKR_HOST_MEMORY, CKR_OK, CKR_SLOT_ID_INVALID);
-
-	return rv;
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
+#endif
 
-CK_RV C_InitToken(CK_SLOT_ID slotID,
-		  CK_UTF8CHAR_PTR pPin,
-		  CK_ULONG ulPinLen,
-		  CK_UTF8CHAR_PTR pLabel)
+/**
+ * \brief Obtains a list of slots in the system
+ */
+CK_RV C_GetSlotList(CK_BBOOL tokenPresent, CK_SLOT_ID_PTR pSlotList, CK_ULONG_PTR pulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_init_token(slotID, pPin, ulPinLen, pLabel);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_PIN_INCORRECT, CKR_PIN_LOCKED, CKR_SESSION_EXISTS,
-		     CKR_SLOT_ID_INVALID, CKR_TOKEN_NOT_PRESENT,
-		     CKR_TOKEN_NOT_RECOGNIZED, CKR_TOKEN_WRITE_PROTECTED);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_slot_get_list(tokenPresent, pSlotList, pulCount));
 }
 
-CK_RV C_GetTokenInfo(CK_SLOT_ID slotID,
-		     CK_TOKEN_INFO_PTR pInfo)
+/**
+ * \brief Obtains information about a particular slot
+ */
+CK_RV C_GetSlotInfo(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_token_get_info(slotID, pInfo);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SLOT_ID_INVALID, CKR_TOKEN_NOT_PRESENT,
-		     CKR_TOKEN_NOT_RECOGNIZED, CKR_ARGUMENTS_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_slot_get_info(slotID, pInfo));
 }
 
-CK_RV C_GetMechanismList(CK_SLOT_ID slotID,
-			 CK_MECHANISM_TYPE_PTR pMechanismList,
-			 CK_ULONG_PTR pulCount)
+/**
+ * \brief Obtains information about a particular token
+ */
+CK_RV C_GetTokenInfo(CK_SLOT_ID slotID, CK_TOKEN_INFO_PTR pInfo)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_token_mechanism_ids(slotID, pMechanismList, pulCount);
-
-	ASSERT_CK_RV(rv, CKR_BUFFER_TOO_SMALL, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_SLOT_ID_INVALID, CKR_TOKEN_NOT_PRESENT,
-		     CKR_TOKEN_NOT_RECOGNIZED, CKR_ARGUMENTS_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_token_get_info(slotID, pInfo));
 }
 
-CK_RV C_GetMechanismInfo(CK_SLOT_ID slotID,
-			 CK_MECHANISM_TYPE type,
-			 CK_MECHANISM_INFO_PTR pInfo)
+/**
+ * \brief Obtains a list of mechanisms supported by a token (in a slot)
+ */
+CK_RV C_GetMechanismList(CK_SLOT_ID slotID, CK_MECHANISM_TYPE_PTR pMechanismList, CK_ULONG_PTR pulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_token_mechanism_info(slotID, type, pInfo);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_MECHANISM_INVALID,
-		     CKR_OK, CKR_SLOT_ID_INVALID, CKR_TOKEN_NOT_PRESENT,
-		     CKR_TOKEN_NOT_RECOGNIZED, CKR_ARGUMENTS_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_mech_get_list(slotID, pMechanismList, pulCount));
 }
 
-CK_RV C_OpenSession(CK_SLOT_ID slotID,
-		    CK_FLAGS flags,
-		    CK_VOID_PTR pApplication,
-		    CK_NOTIFY Notify,
-		    CK_SESSION_HANDLE_PTR phSession)
+/**
+ * \brief Obtains information about a particular mechanism of a token (in a slot)
+ */
+CK_RV C_GetMechanismInfo(CK_SLOT_ID slotID, CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR pInfo)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_open_session(slotID, flags, pApplication, Notify,
-				     phSession);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SESSION_COUNT, CKR_SESSION_PARALLEL_NOT_SUPPORTED,
-		     CKR_SESSION_READ_WRITE_SO_EXISTS, CKR_SLOT_ID_INVALID,
-		     CKR_TOKEN_NOT_PRESENT, CKR_TOKEN_NOT_RECOGNIZED,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_ARGUMENTS_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs_mech_get_info(slotID, type, pInfo));
 }
 
+/**
+ * \brief Initializes a token (in a slot)
+ */
+CK_RV C_InitToken(CK_SLOT_ID slotID, CK_UTF8CHAR_PTR pPin, CK_ULONG ulPinLen, CK_UTF8CHAR_PTR pLabel)
+{
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_token_init(slotID, pPin, ulPinLen, pLabel));
+}
+
+/**
+ * \brief Initializes the normal user's PIN
+ */
+CK_RV C_InitPIN(CK_SESSION_HANDLE hSession, CK_UTF8CHAR_PTR pPin, CK_ULONG ulPinLen)
+{
+    ((void)hSession);
+    ((void)pPin);
+    ((void)ulPinLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
+}
+
+/**
+ * \brief Modifies the PIN of the current user
+ */
+CK_RV C_SetPIN
+(
+    CK_SESSION_HANDLE hSession,
+    CK_UTF8CHAR_PTR   pOldPin,
+    CK_ULONG          ulOldLen,
+    CK_UTF8CHAR_PTR   pNewPin,
+    CK_ULONG          ulNewLen
+)
+{
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
+}
+
+/**
+ * \brief Opens a connection between an application and a particular token or
+ * sets up an application callback for token insertion
+ */
+CK_RV C_OpenSession
+(
+    CK_SLOT_ID            slotID,
+    CK_FLAGS              flags,
+    CK_VOID_PTR           pApplication,
+    CK_NOTIFY             notify,
+    CK_SESSION_HANDLE_PTR phSession
+)
+{
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_session_open(slotID, flags, pApplication, notify, phSession));
+}
+
+/**
+ * \brief Close the given session
+ */
 CK_RV C_CloseSession(CK_SESSION_HANDLE hSession)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_close_session(hSession);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_session_close(hSession));
 }
 
+/**
+ * \brief Close all open sessions
+ */
 CK_RV C_CloseAllSessions(CK_SLOT_ID slotID)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_close_all_sessions(slotID);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SLOT_ID_INVALID, CKR_TOKEN_NOT_PRESENT);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_session_closeall(slotID));
 }
 
-CK_RV C_GetSessionInfo(CK_SESSION_HANDLE hSession,
-		       CK_SESSION_INFO_PTR pInfo)
+/**
+ * \brief Retrieve information about the specified session
+ */
+CK_RV C_GetSessionInfo(CK_SESSION_HANDLE hSession, CK_SESSION_INFO_PTR pInfo)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_get_session_info(hSession, pInfo);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_ARGUMENTS_BAD);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_session_get_info(hSession, pInfo));
 }
 
-CK_RV C_InitPIN(CK_SESSION_HANDLE hSession,
-		CK_UTF8CHAR_PTR pPin,
-		CK_ULONG ulPinLen)
+/**
+ * \brief Obtains the cryptographic operations state of a session
+ */
+CK_RV C_GetOperationState(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pOperationState, CK_ULONG_PTR pulOperationStateLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_init_pin(hSession, pPin, ulPinLen);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_PIN_INVALID, CKR_PIN_LEN_RANGE, CKR_SESSION_CLOSED,
-		     CKR_SESSION_READ_ONLY, CKR_SESSION_HANDLE_INVALID,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_USER_NOT_LOGGED_IN,
-		     CKR_ARGUMENTS_BAD);
-
-	return rv;
+    ((void)hSession);
+    ((void)pOperationState);
+    ((void)pulOperationStateLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SetPIN(CK_SESSION_HANDLE hSession,
-	       CK_UTF8CHAR_PTR pOldPin,
-	       CK_ULONG ulOldLen,
-	       CK_UTF8CHAR_PTR pNewPin,
-	       CK_ULONG ulNewLen)
+/**
+ * \brief Sets the cryptographic operations state of a session
+ */
+CK_RV C_SetOperationState
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pOperationState,
+    CK_ULONG          ulOperationStateLen,
+    CK_OBJECT_HANDLE  hEncryptionKey,
+    CK_OBJECT_HANDLE  hAuthenticationKey
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_set_pin(hSession, pOldPin, ulOldLen, pNewPin, ulNewLen);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_PIN_INCORRECT, CKR_PIN_INVALID,
-		     CKR_PIN_LEN_RANGE, CKR_PIN_LOCKED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_ARGUMENTS_BAD);
-
-	return rv;
+    ((void)hSession);
+    ((void)pOperationState);
+    ((void)ulOperationStateLen);
+    ((void)hEncryptionKey);
+    ((void)hAuthenticationKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_Login(CK_SESSION_HANDLE hSession,
-	      CK_USER_TYPE userType,
-	      CK_UTF8CHAR_PTR pPin,
-	      CK_ULONG ulPinLen)
-
+/**
+ * \brief Login on the token in the specified session
+ */
+CK_RV C_Login(CK_SESSION_HANDLE hSession, CK_USER_TYPE userType, CK_UTF8CHAR_PTR pPin, CK_ULONG ulPinLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_login(hSession, userType, pPin, ulPinLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_PIN_INCORRECT,
-		     CKR_PIN_LOCKED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY_EXISTS,
-		     CKR_USER_ALREADY_LOGGED_IN,
-		     CKR_USER_ANOTHER_ALREADY_LOGGED_IN,
-		     CKR_USER_PIN_NOT_INITIALIZED, CKR_USER_TOO_MANY_TYPES,
-		     CKR_USER_TYPE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_session_login(hSession, userType, pPin, ulPinLen));
 }
 
+/**
+ * \brief Log out of the token in the specified session
+ */
 CK_RV C_Logout(CK_SESSION_HANDLE hSession)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_logout(hSession);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_GetOperationState(CK_SESSION_HANDLE hSession,
-			  CK_BYTE_PTR pOperationState,
-			  CK_ULONG_PTR pulOperationStateLen)
+/**
+ * \brief Create a new object on the token in the specified session using the given attribute template
+ */
+CK_RV C_CreateObject
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_ATTRIBUTE_PTR     pTemplate,
+    CK_ULONG             ulCount,
+    CK_OBJECT_HANDLE_PTR phObject
+)
 {
-	(void)hSession;
-	(void)pOperationState;
-	(void)pulOperationStateLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_object_create(hSession, pTemplate, ulCount, phObject));
 }
 
-CK_RV C_SetOperationState(CK_SESSION_HANDLE hSession,
-			  CK_BYTE_PTR pOperationState,
-			  CK_ULONG ulOperationStateLen,
-			  CK_OBJECT_HANDLE hEncryptionKey,
-			  CK_OBJECT_HANDLE hAuthenticationKey)
+/**
+ * \brief Create a copy of the object with the specified handle
+ */
+CK_RV C_CopyObject
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_OBJECT_HANDLE     hObject,
+    CK_ATTRIBUTE_PTR     pTemplate,
+    CK_ULONG             ulCount,
+    CK_OBJECT_HANDLE_PTR phNewObject
+)
 {
-	(void)hSession;
-	(void)pOperationState;
-	(void)ulOperationStateLen;
-	(void)hEncryptionKey;
-	(void)hAuthenticationKey;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)hObject);
+    ((void)pTemplate);
+    ((void)ulCount);
+    ((void)phNewObject);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_CreateObject(CK_SESSION_HANDLE hSession,
-		     CK_ATTRIBUTE_PTR pTemplate,
-		     CK_ULONG ulCount,
-		     CK_OBJECT_HANDLE_PTR phObject)
+/**
+ * \brief Destroy the specified object
+ */
+CK_RV C_DestroyObject(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_create_object(hSession, pTemplate, ulCount, phObject);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_READ_ONLY,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_ATTRIBUTE_VALUE_INVALID,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_CURVE_NOT_SUPPORTED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_DOMAIN_PARAMS_INVALID, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TEMPLATE_INCOMPLETE, CKR_TEMPLATE_INCONSISTENT,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_object_destroy(hSession, hObject));
 }
 
-CK_RV C_CopyObject(CK_SESSION_HANDLE hSession,
-		   CK_OBJECT_HANDLE hObject,
-		   CK_ATTRIBUTE_PTR pTemplate,
-		   CK_ULONG ulCount,
-		   CK_OBJECT_HANDLE_PTR phNewObject)
+/**
+ * \brief Obtains the size of an object in bytes
+ */
+CK_RV C_GetObjectSize(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, CK_ULONG_PTR pulSize)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_copy_object(hSession, hObject, pTemplate, ulCount,
-				    phNewObject);
-
-	ASSERT_CK_RV(rv, CKR_ACTION_PROHIBITED, CKR_ARGUMENTS_BAD,
-		     CKR_ATTRIBUTE_READ_ONLY, CKR_ATTRIBUTE_TYPE_INVALID,
-		     CKR_ATTRIBUTE_VALUE_INVALID, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OBJECT_HANDLE_INVALID, CKR_OK, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_SESSION_READ_ONLY, CKR_TEMPLATE_INCONSISTENT,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_object_get_size(hSession, hObject, pulSize));
 }
 
-CK_RV C_DestroyObject(CK_SESSION_HANDLE hSession,
-		      CK_OBJECT_HANDLE hObject)
+/**
+ * \brief Obtains an attribute value of an object
+ */
+CK_RV C_GetAttributeValue(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_destroy_object(hSession, hObject);
-
-	ASSERT_CK_RV(rv, CKR_ACTION_PROHIBITED, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OBJECT_HANDLE_INVALID, CKR_OK, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_SESSION_READ_ONLY, CKR_TOKEN_WRITE_PROTECTED);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_find_get_attribute(hSession, hObject, pTemplate, ulCount));
 }
 
-CK_RV C_GetObjectSize(CK_SESSION_HANDLE hSession,
-		      CK_OBJECT_HANDLE hObject,
-		      CK_ULONG_PTR pulSize)
+/**
+ * \brief Change or set the value of the specified attributes on the specified object
+ */
+CK_RV C_SetAttributeValue(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_get_object_size(hSession, hObject, pulSize);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_INFORMATION_SENSITIVE, CKR_OBJECT_HANDLE_INVALID,
-		     CKR_OK, CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    ((void)hSession);
+    ((void)hObject);
+    ((void)pTemplate);
+    ((void)ulCount);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_GetAttributeValue(CK_SESSION_HANDLE hSession,
-			  CK_OBJECT_HANDLE hObject,
-			  CK_ATTRIBUTE_PTR pTemplate,
-			  CK_ULONG ulCount)
+/**
+ * \brief Initializes an object search in the specified session using the specified attribute template as search parameters
+ */
+CK_RV C_FindObjectsInit(CK_SESSION_HANDLE hSession, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_get_attribute_value(hSession, hObject, pTemplate, ulCount);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_SENSITIVE,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OBJECT_HANDLE_INVALID, CKR_OK, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_find_init(hSession, pTemplate, ulCount));
 }
 
-CK_RV C_SetAttributeValue(CK_SESSION_HANDLE hSession,
-			  CK_OBJECT_HANDLE hObject,
-			  CK_ATTRIBUTE_PTR pTemplate,
-			  CK_ULONG ulCount)
+/**
+ * \brief Continue the search for objects in the specified session
+ */
+CK_RV C_FindObjects(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE_PTR phObject, CK_ULONG ulMaxObjectCount, CK_ULONG_PTR pulObjectCount)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_set_attribute_value(hSession, hObject, pTemplate, ulCount);
-
-	ASSERT_CK_RV(rv, CKR_ACTION_PROHIBITED, CKR_ARGUMENTS_BAD,
-		     CKR_ATTRIBUTE_READ_ONLY, CKR_ATTRIBUTE_TYPE_INVALID,
-		     CKR_ATTRIBUTE_VALUE_INVALID, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OBJECT_HANDLE_INVALID, CKR_OK, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TEMPLATE_INCONSISTENT, CKR_TOKEN_WRITE_PROTECTED,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_find_continue(hSession, phObject, ulMaxObjectCount, pulObjectCount));
 }
 
-CK_RV C_FindObjectsInit(CK_SESSION_HANDLE hSession,
-			CK_ATTRIBUTE_PTR pTemplate,
-			CK_ULONG ulCount)
-{
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_find_objects_init(hSession, pTemplate, ulCount);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_TYPE_INVALID,
-		     CKR_ATTRIBUTE_VALUE_INVALID, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
-}
-
-CK_RV C_FindObjects(CK_SESSION_HANDLE hSession,
-		    CK_OBJECT_HANDLE_PTR phObject,
-		    CK_ULONG ulMaxObjectCount,
-		    CK_ULONG_PTR pulObjectCount)
-
-{
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_find_objects(hSession, phObject,
-				     ulMaxObjectCount, pulObjectCount);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
-}
-
+/**
+ * \brief Finishes an object search operation (and cleans up)
+ */
 CK_RV C_FindObjectsFinal(CK_SESSION_HANDLE hSession)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_find_objects_final(hSession);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_find_finish(hSession));
 }
 
-CK_RV C_EncryptInit(CK_SESSION_HANDLE hSession,
-		    CK_MECHANISM_PTR pMechanism,
-		    CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initializes an encryption operation using the specified mechanism and session
+ */
+CK_RV C_EncryptInit
+(
+    CK_SESSION_HANDLE hSession,
+    CK_MECHANISM_PTR  pMechanism,
+    CK_OBJECT_HANDLE  hObject
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_init(hSession, pMechanism, hKey, CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_FUNCTION_NOT_PERMITTED, CKR_KEY_HANDLE_INVALID,
-		     CKR_KEY_SIZE_RANGE, CKR_KEY_TYPE_INCONSISTENT,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hObject);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_Encrypt(CK_SESSION_HANDLE hSession,
-		CK_BYTE_PTR pData,
-		CK_ULONG ulDataLen,
-		CK_BYTE_PTR pEncryptedData,
-		CK_ULONG_PTR pulEncryptedDataLen)
+/**
+ * \brief Perform a single operation encryption operation in the specified session
+ */
+CK_RV C_Encrypt(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pEncryptedData, CK_ULONG_PTR pulEncryptedDataLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_oneshot(hSession, pData, ulDataLen,
-					   pEncryptedData, pulEncryptedDataLen,
-					   CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DATA_LEN_RANGE,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    ((void)hSession);
+    ((void)pData);
+    ((void)ulDataLen);
+    ((void)pEncryptedData);
+    ((void)pulEncryptedDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_EncryptUpdate(CK_SESSION_HANDLE hSession,
-		      CK_BYTE_PTR pPart,
-		      CK_ULONG ulPartLen,
-		      CK_BYTE_PTR pEncryptedData,
-		      CK_ULONG_PTR pulEncryptedDataLen)
+/**
+ * \brief Continues a multiple-part encryption operation
+ */
+CK_RV C_EncryptUpdate
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pData,
+    CK_ULONG          ulDataLen,
+    CK_BYTE_PTR       pEncryptedData,
+    CK_ULONG_PTR      pulEncryptedDataLen
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_update(hSession, pPart, ulPartLen,
-					  pEncryptedData,
-					  pulEncryptedDataLen, CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DATA_LEN_RANGE,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    ((void)hSession);
+    ((void)pData);
+    ((void)ulDataLen);
+    ((void)pEncryptedData);
+    ((void)pulEncryptedDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_EncryptFinal(CK_SESSION_HANDLE hSession,
-		     CK_BYTE_PTR pLastEncryptedPart,
-		     CK_ULONG_PTR pulLastEncryptedPartLen)
+/**
+ * \brief Finishes a multiple-part encryption operation
+ */
+CK_RV C_EncryptFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pEncryptedData, CK_ULONG_PTR pulEncryptedDataLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_final(hSession, pLastEncryptedPart,
-					 pulLastEncryptedPartLen, CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DATA_LEN_RANGE,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    ((void)hSession);
+    ((void)pEncryptedData);
+    ((void)pulEncryptedDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DecryptInit(CK_SESSION_HANDLE hSession,
-		    CK_MECHANISM_PTR pMechanism,
-		    CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initialize decryption using the specified object
+ */
+CK_RV C_DecryptInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hObject)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_init(hSession, pMechanism, hKey, CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_FUNCTION_NOT_PERMITTED, CKR_KEY_HANDLE_INVALID,
-		     CKR_KEY_SIZE_RANGE, CKR_KEY_TYPE_INCONSISTENT,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hObject);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_Decrypt(CK_SESSION_HANDLE hSession,
-		CK_BYTE_PTR pEncryptedData,
-		CK_ULONG ulEncryptedDataLen,
-		CK_BYTE_PTR pData,
-		CK_ULONG_PTR pulDataLen)
+/**
+ * \brief Perform a single operation decryption in the given session
+ */
+CK_RV C_Decrypt
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pEncryptedData,
+    CK_ULONG          ulEncryptedDataLen,
+    CK_BYTE_PTR       pData,
+    CK_ULONG_PTR      pulDataLen
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_oneshot(hSession, pEncryptedData,
-					   ulEncryptedDataLen,
-					   pData, pulDataLen, CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_ENCRYPTED_DATA_INVALID, CKR_ENCRYPTED_DATA_LEN_RANGE,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pEncryptedData);
+    ((void)ulEncryptedDataLen);
+    ((void)pData);
+    ((void)pulDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DecryptUpdate(CK_SESSION_HANDLE hSession,
-		      CK_BYTE_PTR pEncryptedPart,
-		      CK_ULONG ulEncryptedPartLen,
-		      CK_BYTE_PTR pPart,
-		      CK_ULONG_PTR pulPartLen)
+/**
+ * \brief Continues a multiple-part decryption operation
+ */
+CK_RV C_DecryptUpdate
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pEncryptedData,
+    CK_ULONG          ulEncryptedDataLen,
+    CK_BYTE_PTR       pData,
+    CK_ULONG_PTR      pDataLen
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_update(hSession, pEncryptedPart,
-					  ulEncryptedPartLen,
-					  pPart, pulPartLen, CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_ENCRYPTED_DATA_INVALID, CKR_ENCRYPTED_DATA_LEN_RANGE,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pEncryptedData);
+    ((void)ulEncryptedDataLen);
+    ((void)pData);
+    ((void)pDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DecryptFinal(CK_SESSION_HANDLE hSession,
-		     CK_BYTE_PTR pLastPart,
-		     CK_ULONG_PTR pulLastPartLen)
+/**
+ * \brief Finishes a multiple-part decryption operation
+ */
+CK_RV C_DecryptFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG_PTR pDataLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_encdecrypt_final(hSession, pLastPart, pulLastPartLen,
-					 CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_ENCRYPTED_DATA_INVALID, CKR_ENCRYPTED_DATA_LEN_RANGE,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pData);
+    ((void)pDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DigestInit(CK_SESSION_HANDLE hSession,
-		   CK_MECHANISM_PTR pMechanism)
+/**
+ * \brief Initializes a message-digesting operation using the specified mechanism in the specified session
+ */
+CK_RV C_DigestInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_digest_init(hSession, pMechanism);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_MECHANISM_INVALID,
-		     CKR_MECHANISM_PARAM_INVALID, CKR_OK, CKR_OPERATION_ACTIVE,
-		     CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_Digest(CK_SESSION_HANDLE hSession,
-	       CK_BYTE_PTR pData,
-	       CK_ULONG ulDataLen,
-	       CK_BYTE_PTR pDigest,
-	       CK_ULONG_PTR pulDigestLen)
+/**
+ * \brief Digest the specified data in a one-pass operation and return the resulting digest
+ */
+CK_RV C_Digest(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pDigest, CK_ULONG_PTR pulDigestLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_digest_oneshot(hSession, pData, ulDataLen, pDigest,
-				       pulDigestLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DigestUpdate(CK_SESSION_HANDLE hSession,
-		     CK_BYTE_PTR pPart,
-		     CK_ULONG ulPartLen)
+/**
+ * \brief Continues a multiple-part digesting operation
+ */
+CK_RV C_DigestUpdate(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pPart, CK_ULONG ulPartLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_digest_update(hSession, pPart, ulPartLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DigestKey(CK_SESSION_HANDLE hSession,
-		  CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Update a running digest operation by digesting a secret key with the specified handle
+ */
+CK_RV C_DigestKey(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_digest_key(hSession, hKey);
-
-	ASSERT_CK_RV(rv, CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_HANDLE_INVALID, CKR_KEY_INDIGESTIBLE,
-		     CKR_KEY_SIZE_RANGE, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    ((void)hSession);
+    ((void)hObject);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DigestFinal(CK_SESSION_HANDLE hSession,
-		    CK_BYTE_PTR pDigest,
-		    CK_ULONG_PTR pulDigestLen)
+/**
+ * \brief Finishes a multiple-part digesting operation
+ */
+CK_RV C_DigestFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pDigest, CK_ULONG_PTR pulDigestLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_digest_final(hSession, pDigest, pulDigestLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SignInit(CK_SESSION_HANDLE hSession,
-		 CK_MECHANISM_PTR pMechanism,
-		 CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initialize a signing operation using the specified key and mechanism
+ */
+CK_RV C_SignInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_init(hSession, pMechanism, hKey, CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_FUNCTION_NOT_PERMITTED, CKR_KEY_HANDLE_INVALID,
-		     CKR_KEY_SIZE_RANGE, CKR_KEY_TYPE_INCONSISTENT,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_signature_sign_init(hSession, pMechanism, hKey));
 }
 
-CK_RV C_Sign(CK_SESSION_HANDLE hSession,
-	     CK_BYTE_PTR pData,
-	     CK_ULONG ulDataLen,
-	     CK_BYTE_PTR pSignature,
-	     CK_ULONG_PTR pulSignatureLen)
+/**
+ * \brief Sign the data in a single pass operation
+ */
+CK_RV C_Sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_oneshot(hSession, pData, ulDataLen,
-					   pSignature, pulSignatureLen,
-					   CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DATA_INVALID,
-		     CKR_DATA_LEN_RANGE, CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY,
-		     CKR_DEVICE_REMOVED, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN,
-		     CKR_FUNCTION_REJECTED);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_signature_sign(hSession, pData, ulDataLen, pSignature, pulSignatureLen));
 }
 
-CK_RV C_SignUpdate(CK_SESSION_HANDLE hSession,
-		   CK_BYTE_PTR pPart,
-		   CK_ULONG ulPartLen)
+/**
+ * \brief Continues a multiple-part signature operation
+ */
+CK_RV C_SignUpdate(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pPart, CK_ULONG ulPartLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_update(hSession, pPart, ulPartLen, CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DATA_LEN_RANGE, CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY,
-		     CKR_DEVICE_REMOVED, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SignFinal(CK_SESSION_HANDLE hSession,
-		  CK_BYTE_PTR pSignature,
-		  CK_ULONG_PTR pulSignatureLen)
+/**
+ * \brief Finishes a multiple-part signature operation
+ */
+CK_RV C_SignFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_final(hSession, pSignature, pulSignatureLen,
-					 CK_TRUE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DATA_LEN_RANGE,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN,
-		     CKR_FUNCTION_REJECTED);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SignRecoverInit(CK_SESSION_HANDLE hSession,
-			CK_MECHANISM_PTR pMechanism,
-			CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initializes a signature operation, where the data can be recovered from the signature
+ */
+CK_RV C_SignRecoverInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
 {
-	(void)hSession;
-	(void)pMechanism;
-	(void)hKey;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SignRecover(CK_SESSION_HANDLE hSession,
-		    CK_BYTE_PTR pData,
-		    CK_ULONG ulDataLen,
-		    CK_BYTE_PTR pSignature,
-		    CK_ULONG_PTR pulSignatureLen)
+/**
+ * \brief Signs single-part data, where the data can be recovered from the signature
+ */
+CK_RV C_SignRecover(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
 {
-	(void)hSession;
-	(void)pData;
-	(void)ulDataLen;
-	(void)pSignature;
-	(void)pulSignatureLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pData);
+    ((void)ulDataLen);
+    ((void)pSignature);
+    ((void)pulSignatureLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_VerifyInit(CK_SESSION_HANDLE hSession,
-		   CK_MECHANISM_PTR pMechanism,
-		   CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initializes a verification operation using the specified key and mechanism
+ */
+CK_RV C_VerifyInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_init(hSession, pMechanism, hKey, CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_FUNCTION_NOT_PERMITTED, CKR_KEY_HANDLE_INVALID,
-		     CKR_KEY_SIZE_RANGE, CKR_KEY_TYPE_INCONSISTENT,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_Verify(CK_SESSION_HANDLE hSession,
-	       CK_BYTE_PTR pData,
-	       CK_ULONG ulDataLen,
-	       CK_BYTE_PTR pSignature,
-	       CK_ULONG ulSignatureLen)
+/**
+ * \brief Verifies a signature on single-part data
+ */
+CK_RV C_Verify(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pSignature, CK_ULONG ulSignatureLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-	CK_ULONG out_size = ulSignatureLen;
-
-	if (lib_initiated())
-		rv = ck_signverify_oneshot(hSession, pData, ulDataLen,
-					   pSignature, &out_size,
-					   CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DATA_INVALID, CKR_DATA_LEN_RANGE, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SIGNATURE_INVALID,
-		     CKR_SIGNATURE_LEN_RANGE);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_VerifyUpdate(CK_SESSION_HANDLE hSession,
-		     CK_BYTE_PTR pPart,
-		     CK_ULONG ulPartLen)
+/**
+ * \brief Continues a multiple-part verification operation
+ */
+CK_RV C_VerifyUpdate(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pPart, CK_ULONG ulPartLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_update(hSession, pPart, ulPartLen, CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DATA_LEN_RANGE, CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY,
-		     CKR_DEVICE_REMOVED, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_VerifyFinal(CK_SESSION_HANDLE hSession,
-		    CK_BYTE_PTR pSignature,
-		    CK_ULONG ulSignatureLen)
+/**
+ * \brief Finishes a multiple-part verification operation
+ */
+CK_RV C_VerifyFinal(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pSignature, CK_ULONG ulSignatureLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_signverify_final(hSession, pSignature, &ulSignatureLen,
-					 CK_FALSE);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DATA_LEN_RANGE, CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY,
-		     CKR_DEVICE_REMOVED, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_OK, CKR_OPERATION_NOT_INITIALIZED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SIGNATURE_INVALID,
-		     CKR_SIGNATURE_LEN_RANGE);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_VerifyRecoverInit(CK_SESSION_HANDLE hSession,
-			  CK_MECHANISM_PTR pMechanism,
-			  CK_OBJECT_HANDLE hKey)
+/**
+ * \brief Initializes a verification operation where the data is recovered from the signature
+ */
+CK_RV C_VerifyRecoverInit(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
 {
-	(void)hSession;
-	(void)pMechanism;
-	(void)hKey;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_VerifyRecover(CK_SESSION_HANDLE hSession,
-		      CK_BYTE_PTR pSignature,
-		      CK_ULONG ulSignatureLen,
-		      CK_BYTE_PTR pData,
-		      CK_ULONG_PTR pulDataLen)
+/**
+ * \brief Verifies a signature on single-part data, where the data is recovered from the signature
+ */
+CK_RV C_VerifyRecover(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pSignature, CK_ULONG ulSignatureLen, CK_BYTE_PTR pData, CK_ULONG_PTR pulDataLen)
 {
-	(void)hSession;
-	(void)pSignature;
-	(void)ulSignatureLen;
-	(void)pData;
-	(void)pulDataLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pSignature);
+    ((void)ulSignatureLen);
+    ((void)pData);
+    ((void)pulDataLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DigestEncryptUpdate(CK_SESSION_HANDLE hSession,
-			    CK_BYTE_PTR pPart,
-			    CK_ULONG ulPartLen,
-			    CK_BYTE_PTR pEncryptedPart,
-			    CK_ULONG_PTR pulEncryptedPartLen)
+/**
+ * \brief Continues simultaneous multiple-part digesting and encryption operations
+ */
+CK_RV C_DigestEncryptUpdate
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pPart,
+    CK_ULONG          ulPartLen,
+    CK_BYTE_PTR       pEncryptedPart,
+    CK_ULONG_PTR      pulEncryptedPartLen
+)
 {
-	(void)hSession;
-	(void)pPart;
-	(void)ulPartLen;
-	(void)pEncryptedPart;
-	(void)pulEncryptedPartLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pPart);
+    ((void)ulPartLen);
+    ((void)pEncryptedPart);
+    ((void)pulEncryptedPartLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DecryptDigestUpdate(CK_SESSION_HANDLE hSession,
-			    CK_BYTE_PTR pEncryptedPart,
-			    CK_ULONG ulEncryptedPartLen,
-			    CK_BYTE_PTR pPart,
-			    CK_ULONG_PTR pulPartLen)
+/**
+ * \brief Continues simultaneous multiple-part decryption and digesting operations
+ */
+CK_RV C_DecryptDigestUpdate
+(
+    CK_SESSION_HANDLE hSession,
+    CK_BYTE_PTR       pPart,
+    CK_ULONG          ulPartLen,
+    CK_BYTE_PTR       pDecryptedPart,
+    CK_ULONG_PTR      pulDecryptedPartLen
+)
 {
-	(void)hSession;
-	(void)pEncryptedPart;
-	(void)ulEncryptedPartLen;
-	(void)pPart;
-	(void)pulPartLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pPart);
+    ((void)ulPartLen);
+    ((void)pDecryptedPart);
+    ((void)pulDecryptedPartLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SignEncryptUpdate(CK_SESSION_HANDLE hSession,
-			  CK_BYTE_PTR pPart,
-			  CK_ULONG ulPartLen,
-			  CK_BYTE_PTR pEncryptedPart,
-			  CK_ULONG_PTR pulEncryptedPartLen)
+/**
+ * \brief Continues simultaneous multiple-part signature and encryption operations
+ */
+CK_RV C_SignEncryptUpdate(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pPart, CK_ULONG ulPartLen, CK_BYTE_PTR pEncryptedPart, CK_ULONG_PTR pulEncryptedPartLen)
 {
-	(void)hSession;
-	(void)pPart;
-	(void)ulPartLen;
-	(void)pEncryptedPart;
-	(void)pulEncryptedPartLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pPart);
+    ((void)ulPartLen);
+    ((void)pEncryptedPart);
+    ((void)pulEncryptedPartLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DecryptVerifyUpdate(CK_SESSION_HANDLE hSession,
-			    CK_BYTE_PTR pEncryptedPart,
-			    CK_ULONG ulEncryptedPartLen,
-			    CK_BYTE_PTR pPart,
-			    CK_ULONG_PTR pulPartLen)
+/**
+ * \brief Continues simultaneous multiple-part decryption and verification operations
+ */
+CK_RV C_DecryptVerifyUpdate(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pEncryptedPart, CK_ULONG ulEncryptedPartLen, CK_BYTE_PTR pPart, CK_ULONG_PTR pulPartLen)
 {
-	(void)hSession;
-	(void)pEncryptedPart;
-	(void)ulEncryptedPartLen;
-	(void)pPart;
-	(void)pulPartLen;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)hSession);
+    ((void)pEncryptedPart);
+    ((void)ulEncryptedPartLen);
+    ((void)pPart);
+    ((void)pulPartLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_GenerateKey(CK_SESSION_HANDLE hSession,
-		    CK_MECHANISM_PTR pMechanism,
-		    CK_ATTRIBUTE_PTR pTemplate,
-		    CK_ULONG ulCount,
-		    CK_OBJECT_HANDLE_PTR phKey)
+/**
+ * \brief Generates a secret key using the specified mechanism
+ */
+CK_RV C_GenerateKey
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_MECHANISM_PTR     pMechanism,
+    CK_ATTRIBUTE_PTR     pTemplate,
+    CK_ULONG             ulCount,
+    CK_OBJECT_HANDLE_PTR phKey
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_generate_key(hSession, pMechanism, pTemplate, ulCount,
-				     phKey);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_READ_ONLY,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_ATTRIBUTE_VALUE_INVALID,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_CURVE_NOT_SUPPORTED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_MECHANISM_INVALID,
-		     CKR_MECHANISM_PARAM_INVALID, CKR_OK, CKR_OPERATION_ACTIVE,
-		     CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TEMPLATE_INCOMPLETE, CKR_TEMPLATE_INCONSISTENT,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)pTemplate);
+    ((void)ulCount);
+    ((void)phKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_GenerateKeyPair(CK_SESSION_HANDLE hSession,
-			CK_MECHANISM_PTR pMechanism,
-			CK_ATTRIBUTE_PTR pPublicKeyTemplate,
-			CK_ULONG ulPublicKeyAttributeCount,
-			CK_ATTRIBUTE_PTR pPrivateKeyTemplate,
-			CK_ULONG ulPrivateKeyAttributeCount,
-			CK_OBJECT_HANDLE_PTR phPublicKey,
-			CK_OBJECT_HANDLE_PTR phPrivateKey)
+/**
+ * \brief Generates a public-key/private-key pair using the specified mechanism
+ */
+CK_RV C_GenerateKeyPair
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_MECHANISM_PTR     pMechanism,
+    CK_ATTRIBUTE_PTR     pPublicKeyTemplate,
+    CK_ULONG             ulPublicKeyAttributeCount,
+    CK_ATTRIBUTE_PTR     pPrivateKeyTemplate,
+    CK_ULONG             ulPrivateKeyAttributeCount,
+    CK_OBJECT_HANDLE_PTR phPublicKey,
+    CK_OBJECT_HANDLE_PTR phPrivateKey
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_generate_key_pair(hSession, pMechanism,
-					  pPublicKeyTemplate,
-					  ulPublicKeyAttributeCount,
-					  pPrivateKeyTemplate,
-					  ulPrivateKeyAttributeCount,
-					  phPublicKey, phPrivateKey);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_READ_ONLY,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_ATTRIBUTE_VALUE_INVALID,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_CURVE_NOT_SUPPORTED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_DOMAIN_PARAMS_INVALID, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID,
-		     CKR_OK, CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_SESSION_READ_ONLY, CKR_TEMPLATE_INCOMPLETE,
-		     CKR_TEMPLATE_INCONSISTENT, CKR_TOKEN_WRITE_PROTECTED,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(qti_pkcs11_key_generate_pair(hSession, pMechanism, pPublicKeyTemplate,
+                                                 ulPublicKeyAttributeCount, pPrivateKeyTemplate, ulPrivateKeyAttributeCount, phPublicKey, phPrivateKey));
 }
 
-CK_RV C_WrapKey(CK_SESSION_HANDLE hSession,
-		CK_MECHANISM_PTR pMechanism,
-		CK_OBJECT_HANDLE hWrappingKey,
-		CK_OBJECT_HANDLE hKey,
-		CK_BYTE_PTR pWrappedKey,
-		CK_ULONG_PTR pulWrappedKeyLen)
+/**
+ * \brief Wraps (encrypts) the specified key using the specified wrapping key and mechanism
+ */
+CK_RV C_WrapKey
+(
+    CK_SESSION_HANDLE hSession,
+    CK_MECHANISM_PTR  pMechanism,
+    CK_OBJECT_HANDLE  hWrappingKey,
+    CK_OBJECT_HANDLE  hKey,
+    CK_BYTE_PTR       pWrappedKey,
+    CK_ULONG_PTR      pulWrappedKeyLen
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_wrap_key(hSession, pMechanism, hWrappingKey, hKey,
-				 pWrappedKey, pulWrappedKeyLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_BUFFER_TOO_SMALL,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_KEY_HANDLE_INVALID,
-		     CKR_KEY_NOT_WRAPPABLE, CKR_KEY_SIZE_RANGE,
-		     CKR_KEY_UNEXTRACTABLE, CKR_MECHANISM_INVALID,
-		     CKR_MECHANISM_PARAM_INVALID, CKR_OK, CKR_OPERATION_ACTIVE,
-		     CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN,
-		     CKR_WRAPPING_KEY_HANDLE_INVALID,
-		     CKR_WRAPPING_KEY_SIZE_RANGE,
-		     CKR_WRAPPING_KEY_TYPE_INCONSISTENT);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hWrappingKey);
+    ((void)hKey);
+    ((void)pWrappedKey);
+    ((void)pulWrappedKeyLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_UnwrapKey(CK_SESSION_HANDLE hSession,
-		  CK_MECHANISM_PTR pMechanism,
-		  CK_OBJECT_HANDLE hUnwrappingKey,
-		  CK_BYTE_PTR pWrappedKey,
-		  CK_ULONG ulWrappedKeyLen,
-		  CK_ATTRIBUTE_PTR pTemplate,
-		  CK_ULONG ulCount,
-		  CK_OBJECT_HANDLE_PTR phKey)
+/**
+ * \brief Unwraps (decrypts) the specified key using the specified unwrapping key
+ */
+CK_RV C_UnwrapKey
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_MECHANISM_PTR     pMechanism,
+    CK_OBJECT_HANDLE     hUnwrappingKey,
+    CK_BYTE_PTR          pWrappedKey,
+    CK_ULONG             ulWrappedKeyLen,
+    CK_ATTRIBUTE_PTR     pTemplate,
+    CK_ULONG             ulCount,
+    CK_OBJECT_HANDLE_PTR phKey
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_unwrap_key(hSession, pMechanism, hUnwrappingKey,
-				   pWrappedKey, ulWrappedKeyLen, pTemplate,
-				   ulCount, phKey);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_READ_ONLY,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_ATTRIBUTE_VALUE_INVALID,
-		     CKR_BUFFER_TOO_SMALL, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_CURVE_NOT_SUPPORTED, CKR_DEVICE_ERROR,
-		     CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_DOMAIN_PARAMS_INVALID, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_MECHANISM_INVALID, CKR_MECHANISM_PARAM_INVALID, CKR_OK,
-		     CKR_OPERATION_ACTIVE, CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TEMPLATE_INCOMPLETE, CKR_TEMPLATE_INCONSISTENT,
-		     CKR_TOKEN_WRITE_PROTECTED,
-		     CKR_UNWRAPPING_KEY_HANDLE_INVALID,
-		     CKR_UNWRAPPING_KEY_SIZE_RANGE,
-		     CKR_UNWRAPPING_KEY_TYPE_INCONSISTENT,
-		     CKR_USER_NOT_LOGGED_IN, CKR_WRAPPED_KEY_INVALID,
-		     CKR_WRAPPED_KEY_LEN_RANGE);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hUnwrappingKey);
+    ((void)pWrappedKey);
+    ((void)ulWrappedKeyLen);
+    ((void)pTemplate);
+    ((void)ulCount);
+    ((void)phKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_DeriveKey(CK_SESSION_HANDLE hSession,
-		  CK_MECHANISM_PTR pMechanism,
-		  CK_OBJECT_HANDLE hBaseKey,
-		  CK_ATTRIBUTE_PTR pTemplate,
-		  CK_ULONG ulCount,
-		  CK_OBJECT_HANDLE_PTR phKey)
+/**
+ * \brief Derive a key from the specified base key
+ */
+CK_RV C_DeriveKey
+(
+    CK_SESSION_HANDLE    hSession,
+    CK_MECHANISM_PTR     pMechanism,
+    CK_OBJECT_HANDLE     hBaseKey,
+    CK_ATTRIBUTE_PTR     pTemplate,
+    CK_ULONG             ulCount,
+    CK_OBJECT_HANDLE_PTR phKey
+)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_derive_key(hSession, pMechanism, hBaseKey, pTemplate,
-				   ulCount, phKey);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_ATTRIBUTE_READ_ONLY,
-		     CKR_ATTRIBUTE_TYPE_INVALID, CKR_ATTRIBUTE_VALUE_INVALID,
-		     CKR_CRYPTOKI_NOT_INITIALIZED, CKR_CURVE_NOT_SUPPORTED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_DOMAIN_PARAMS_INVALID, CKR_FUNCTION_CANCELED,
-		     CKR_FUNCTION_FAILED, CKR_GENERAL_ERROR, CKR_HOST_MEMORY,
-		     CKR_KEY_HANDLE_INVALID, CKR_KEY_SIZE_RANGE,
-		     CKR_KEY_TYPE_INCONSISTENT, CKR_MECHANISM_INVALID,
-		     CKR_MECHANISM_PARAM_INVALID, CKR_OK, CKR_OPERATION_ACTIVE,
-		     CKR_PIN_EXPIRED, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_SESSION_READ_ONLY,
-		     CKR_TEMPLATE_INCOMPLETE, CKR_TEMPLATE_INCONSISTENT,
-		     CKR_TOKEN_WRITE_PROTECTED, CKR_USER_NOT_LOGGED_IN,
-		     CKR_DATA_LEN_RANGE);
-
-	return rv;
+    ((void)hSession);
+    ((void)pMechanism);
+    ((void)hBaseKey);
+    ((void)pTemplate);
+    ((void)ulCount);
+    ((void)phKey);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
-CK_RV C_SeedRandom(CK_SESSION_HANDLE hSession,
-		   CK_BYTE_PTR pSeed,
-		   CK_ULONG ulSeedLen)
+/**
+ * \brief Mixes in additional seed material to the random number generator
+ */
+CK_RV C_SeedRandom(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pSeed, CK_ULONG ulSeedLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_seed_random(hSession, pSeed, ulSeedLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_ACTIVE, CKR_RANDOM_SEED_NOT_SUPPORTED,
-		     CKR_RANDOM_NO_RNG, CKR_SESSION_CLOSED,
-		     CKR_SESSION_HANDLE_INVALID, CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    ((void)hSession);
+    ((void)pSeed);
+    ((void)ulSeedLen);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_RANDOM_SEED_NOT_SUPPORTED);
 }
 
-CK_RV C_GenerateRandom(CK_SESSION_HANDLE hSession,
-		       CK_BYTE_PTR pRandomData,
-		       CK_ULONG ulRandomLen)
+/**
+ * \brief Generate the specified amount of random data
+ */
+CK_RV C_GenerateRandom(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pRandomData, CK_ULONG ulRandomLen)
 {
-	CK_RV rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	if (lib_initiated())
-		rv = ck_generate_random(hSession, pRandomData, ulRandomLen);
-
-	ASSERT_CK_RV(rv, CKR_ARGUMENTS_BAD, CKR_CRYPTOKI_NOT_INITIALIZED,
-		     CKR_DEVICE_ERROR, CKR_DEVICE_MEMORY, CKR_DEVICE_REMOVED,
-		     CKR_FUNCTION_CANCELED, CKR_FUNCTION_FAILED,
-		     CKR_GENERAL_ERROR, CKR_HOST_MEMORY, CKR_OK,
-		     CKR_OPERATION_ACTIVE, CKR_RANDOM_NO_RNG,
-		     CKR_SESSION_CLOSED, CKR_SESSION_HANDLE_INVALID,
-		     CKR_USER_NOT_LOGGED_IN);
-
-	return rv;
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
 
+/**
+ * \brief Legacy function - see PKCS#11 v2.40
+ */
 CK_RV C_GetFunctionStatus(CK_SESSION_HANDLE hSession)
 {
-	(void)hSession;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_PARALLEL;
+    ((void)hSession);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_PARALLEL);
 }
 
+/**
+ * \brief Legacy function
+ */
 CK_RV C_CancelFunction(CK_SESSION_HANDLE hSession)
 {
-	(void)hSession;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_PARALLEL;
+    ((void)hSession);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_PARALLEL);
 }
 
-CK_RV C_WaitForSlotEvent(CK_FLAGS flags,
-			 CK_SLOT_ID_PTR slotID,
-			 CK_VOID_PTR pReserved)
+/**
+ * \brief Wait for a slot event (token insertion, removal, etc) on the specified slot to occur
+ */
+CK_RV C_WaitForSlotEvent(CK_FLAGS flags, CK_SLOT_ID_PTR pSlot, CK_VOID_PTR pReserved)
 {
-	(void)flags;
-	(void)slotID;
-	(void)pReserved;
-
-	if (!lib_initiated())
-		return CKR_CRYPTOKI_NOT_INITIALIZED;
-
-	return CKR_FUNCTION_NOT_SUPPORTED;
+    ((void)flags);
+    ((void)pSlot);
+    ((void)pReserved);
+    PKCS11_DEBUG("\r\n");
+    PKCS11_DEBUG_RETURN(CKR_FUNCTION_NOT_SUPPORTED);
 }
+
