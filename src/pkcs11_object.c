@@ -1,11 +1,13 @@
-/*
- * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * All rights reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
 
 #include <stdio.h>
+#include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "cryptoki.h"
 #include "pkcs11_debug.h"
 #include "pkcs11_init.h"
@@ -358,6 +360,7 @@ CK_RV qti_pkcs11_find_finish(CK_SESSION_HANDLE hSession)
 
 static pkcs11_object pkcs11_object_store[PKCS11_MAX_OBJECTS_ALLOWED];
 pkcs11_object_cache_t pkcs11_object_cache[PKCS11_MAX_OBJECTS_ALLOWED];
+static unsigned int objects_used;
 
 /** For object handle tracking */
 static CK_OBJECT_HANDLE qti_pkcs11_object_alloc_handle(void)
@@ -493,36 +496,26 @@ printf("%s %d\n",__func__, __LINE__);
     {
         return CKR_ARGUMENTS_BAD;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (pAttribute->pValue)
     {
         /* 1. If the specified attribute(i.e., the attribute specified by the type field) for the object cannot be revealed
            because the object is sensitive or unextractable, then the ulValueLen field in that triple is modified to
            hold the value CK_UNAVAILABLE_INFORMATION. //if (!rv) rv = CKR_ATTRIBUTE_SENSITIVE; */
-printf("%s %d\n",__func__, __LINE__);
-
 
         if (ulSize <= pAttribute->ulValueLen)
         {
             /* 4. Otherwise, if the length specified in ulValueLen is large enough to hold the value of the specified
                attribute for the object, then that attribute is copied into the buffer located at pValue */
-printf("%s %d\n",__func__, __LINE__);
-
 
             if (pData)
             {
-printf("%s %d\n",__func__, __LINE__);
-
-
                 memcpy(pAttribute->pValue, pData, ulSize);
             }
             else
             {
                 /* This case isn't covered by the PKCS11 specification as it always assumes that the internals of the
                    library should be rational about providing some data if an attribute is matched. */
-printf("%s %d\n",__func__, __LINE__);
                 memset(pAttribute->pValue, 0, pAttribute->ulValueLen);
             }
         }
@@ -530,15 +523,10 @@ printf("%s %d\n",__func__, __LINE__);
         {
             /* 5. Otherwise, the ulValueLen field is modified to hold the value CK_UNAVAILABLE_INFORMATION. */
             pAttribute->ulValueLen = CK_UNAVAILABLE_INFORMATION;
-	printf("%s %d\n",__func__, __LINE__);
-
 
             return CKR_BUFFER_TOO_SMALL;
         }
     }
-
-printf("%s %d\n",__func__, __LINE__);
-
 
     pAttribute->ulValueLen = ulSize;
 
@@ -571,6 +559,16 @@ CK_RV qti_pkcs11_attrib_empty(const CK_VOID_PTR pObject, CK_ATTRIBUTE_PTR pAttri
 {
     ((void)pObject);
     return qti_pkcs11_attrib_fill(pAttribute, NULL, 0);
+}
+
+CK_RV pkcs11_key_get_private_key(CK_VOID_PTR pObject, CK_ATTRIBUTE_PTR pAttribute)
+{
+//       pkcs11_attrib_fill(pAttribute, /* buffer holding key */, /* sizeof buffer */);
+}
+
+CK_RV pkcs11_key_get_public_key(CK_VOID_PTR pObject, CK_ATTRIBUTE_PTR pAttribute)
+{
+//       pkcs11_attrib_fill(pAttribute, /* buffer holding key */, /* sizeof buffer */);
 }
 
 CK_RV qti_pkcs11_object_get_name(CK_VOID_PTR pObject, CK_ATTRIBUTE_PTR pAttribute)
@@ -735,7 +733,7 @@ const pkcs11_attrib_model pkcs11_key_private_attributes[] = {
     /** Key identifier for key (default empty) */
     { CKA_ID,                  qti_pkcs11_attrib_empty                                                                   },
     { CKA_SIGN,                qti_pkcs11_attrib_true                                                                    },
-    { CKA_VALUE,               NULL_PTR                                                                              },
+    { CKA_VALUE,               pkcs11_key_get_private_key                                  },
 };
 
 const pkcs11_attrib_model pkcs11_key_public_attributes[] = {
@@ -756,14 +754,57 @@ const pkcs11_attrib_model pkcs11_key_public_attributes[] = {
     /** Key identifier for key (default empty) */
     { CKA_ID,                  qti_pkcs11_attrib_empty                                                                   },
     { CKA_SIGN,                qti_pkcs11_attrib_true                                                                    },
-    { CKA_VALUE,               NULL_PTR                                                                              },
+    { CKA_VALUE,               pkcs11_key_get_public_key                                                                              },
 };
 
 const CK_ULONG pkcs11_key_private_attributes_count = sizeof(pkcs11_key_private_attributes)/sizeof(pkcs11_key_private_attributes[0]);
 const CK_ULONG pkcs11_key_public_attributes_count = sizeof(pkcs11_key_public_attributes)/sizeof(pkcs11_key_public_attributes[0]);
 
-void qti_pkcs11_config_init_private(pkcs11_object_ptr pObject, char * label, size_t len)
+static void qti_pkcs11_save_obj_store(pkcs11_slot_ctx_ptr pSlot, char *objtype, pkcs11_object_ptr pObject)
 {
+    FILE* fp;
+    char filename[200];
+    char cwd[100];
+    int i;
+
+    if (!getcwd(cwd, sizeof(cwd)) != NULL) {
+	 printf("Error: Unable to save in cwd \n");
+  	 return;
+    }
+
+    //TBD
+    i = objects_used - 1;
+
+/*    for (i = 0; i < PKCS11_MAX_OBJECTS_ALLOWED; i++)
+    {
+	if (!pkcs11_object_store[i].flags)
+	     break;
+
+        if (pObject->flags & (1 << i))
+             break;
+     }*/
+
+printf("%s %d i %d\n",__func__, __LINE__, i);
+
+    if (i < PKCS11_MAX_OBJECTS_ALLOWED)
+    {
+        (void)snprintf(filename, sizeof(filename), "%s%d.%d.conf", cwd, pSlot->slot_id, i);
+        fp = fopen(filename, "wb");
+        if (fp)
+        {
+printf("%s %d\n",__func__, __LINE__);
+            fprintf(fp, "type = %s\n", objtype);
+            fprintf(fp, "label = %s\n", pObject->name);
+            fclose(fp);
+        }
+    }
+}
+
+
+void qti_pkcs11_config_init_private(pkcs11_object_ptr pObject, char * label, size_t len)
+//* Static file size of max 1000 bytes to hold object attributes */
+{
+printf("%s %d\n",__func__, __LINE__);
     if (len >= PKCS11_MAX_LABEL_SIZE)
     {
         len = PKCS11_MAX_LABEL_SIZE - 1;
@@ -776,10 +817,13 @@ void qti_pkcs11_config_init_private(pkcs11_object_ptr pObject, char * label, siz
     pObject->count = pkcs11_key_private_attributes_count;
     pObject->data = NULL;
     pObject->size = 16;
+    pObject->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
+    objects_used++;
 }
 
 void qti_pkcs11_config_init_public(pkcs11_object_ptr pObject, char * label, size_t len)
 {
+printf("%s %d\n",__func__, __LINE__);
     if (len >= PKCS11_MAX_LABEL_SIZE)
     {
         len = PKCS11_MAX_LABEL_SIZE - 1;
@@ -792,6 +836,8 @@ void qti_pkcs11_config_init_public(pkcs11_object_ptr pObject, char * label, size
     pObject->count = pkcs11_key_public_attributes_count;
     pObject->data = NULL;
     pObject->size = 64;
+    pObject->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
+    objects_used++;
 }
 
 /**
@@ -813,6 +859,7 @@ CK_RV qti_pkcs11_object_create
     int i;
     pkcs11_lib_ctx_ptr pLibCtx = NULL;
     pkcs11_session_ctx_ptr pSession = NULL;
+    pkcs11_slot_ctx_ptr slot_ctx;
 
     rv = qti_pkcs11_init_check(&pLibCtx, FALSE);
     if (rv)
@@ -838,7 +885,7 @@ CK_RV qti_pkcs11_object_create
             pClass = pTemplate[i].pValue;
             break;
         case CKA_VALUE:
-        /* fall-through */
+        /* Fix this to save in the file */
         case CKA_EC_POINT:
             pData = &pTemplate[i];
             break;
@@ -846,6 +893,8 @@ CK_RV qti_pkcs11_object_create
             break;
         }
     }
+
+    slot_ctx = (pkcs11_slot_ctx_ptr)pSession->slot;
 
     rv = qti_pkcs11_object_alloc(&pObject);
     if (pObject)
@@ -857,12 +906,14 @@ CK_RV qti_pkcs11_object_create
             pObject->slot = i;
             pObject->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
             qti_pkcs11_config_init_public(pObject, pLabel->pValue, pLabel->ulValueLen);
+	    qti_pkcs11_save_obj_store(slot_ctx, "public", pObject);
             break;
         case CKO_PRIVATE_KEY:
             pObject->class_id = CKO_PRIVATE_KEY;
             pObject->slot = i;
             pObject->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
             qti_pkcs11_config_init_private(pObject, pLabel->pValue, pLabel->ulValueLen);
+	    qti_pkcs11_save_obj_store(slot_ctx, "private", pObject);
             break;
         default:
             break;
@@ -950,22 +1001,17 @@ printf("%s %d\n",__func__, __LINE__);
     {
         return rv;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!pTemplate || !ulCount)
     {
         return CKR_ARGUMENTS_BAD;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     rv = qti_pkcs11_session_check(&pSession, hSession);
     if (rv)
     {
         return rv;
     }
-printf("%s %d\n",__func__, __LINE__);
 
 #if 1
     rv = qti_pkcs11_object_check(&pObject, hObject);
@@ -974,7 +1020,6 @@ printf("%s %d\n",__func__, __LINE__);
         return rv;
     }
 #endif
-printf("%s %d\n",__func__, __LINE__);
 
     //return qti_pkcs11_attrib_fill(&pTemplate[0], (const CK_VOID_PTR)&cbTrue, sizeof(cbTrue));
 #if 1
@@ -982,8 +1027,6 @@ printf("%s %d\n",__func__, __LINE__);
     {
         pkcs11_attrib_model_ptr pAttribute = qti_pkcs11_find_attrib((const pkcs11_attrib_model_ptr)pObject->attributes,
                                                                 pObject->count, &pTemplate[i]);
-printf("%s %d\n",__func__, __LINE__);
-
 
         if (!pAttribute)
         {
@@ -1015,10 +1058,207 @@ printf("%s %d\n",__func__, __LINE__);
             }
         }
     }
-printf("%s %d\n",__func__, __LINE__);
 #endif
 
     return rv;
+}
+
+/* Static file size of max 1000 bytes to hold object attributes */
+#define MAX_OBJ_FILE_SZ 1000
+
+static size_t qti_pkcs11_config_load_file(FILE* fp, char * buffer)
+{
+    size_t size = 0;
+
+    if (buffer)
+    {
+        /* Get file size */
+        fseek(fp, 0L, SEEK_END);
+        size = ftell(fp);
+        fseek(fp, 0L, SEEK_SET);
+        memset(buffer, 0, size);
+        if (size != fread(buffer, 1, size, fp))
+             size = 0;
+    }
+
+    return size;
+}
+
+
+/* Parse a buffer into key value pairs. Return value should be an even value */
+static int qti_pkcs11_config_parse_buffer(char* buffer, size_t len, int argc, char* argv[])
+{
+    char* s;
+    int args = 0;
+    bool comment = FALSE;
+    bool arg = FALSE;
+    bool v = FALSE;
+
+    if (!buffer || !len || !argc || !argv)
+    {
+        return 0;
+    }
+
+    for (s = buffer; s < (buffer + len) && args < argc; s++)
+    {
+        switch (*s)
+        {
+        case '\n':
+        case '\r':
+            /* End the line*/
+            if (arg && !v && !comment)
+            {
+                /* Everything must be a key value pair */
+                return 0;
+            }
+            else
+            {
+                comment = FALSE;
+                v = FALSE;
+                arg = FALSE;
+                *s = '\0';
+            }
+            break;
+        case '=':
+            v = TRUE;
+        case ' ':
+        case '\t':
+            *s = '\0';
+            arg = 0;
+            break;
+        default:
+            if (!comment)
+            {
+                if (*s == '#')
+                {
+                    comment = 1;
+                }
+                else if (!arg)
+                {
+                    argv[args++] = s;
+                    arg = TRUE;
+                }
+            }
+            break;
+        }
+    }
+
+    if (args & 0x1)
+    {
+        /* Parsing error occured */
+        args = 0;
+    }
+
+    return args;
+}
+
+static CK_RV qti_pkcs11_config_parse_object_file(pkcs11_slot_ctx_ptr slot_ctx, CK_BYTE slot, int argc, char * argv[])
+{
+    CK_RV rv;
+    int i;
+    pkcs11_object_ptr pObject = NULL;
+    bool privkey = FALSE;
+
+    rv = qti_pkcs11_object_alloc(&pObject);
+    if (!rv && pObject)
+    {
+        pObject->slot = slot;
+        pObject->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
+        memset(pObject->name, 0, sizeof(pObject->name));
+    }
+
+    for (i = 0; i < argc; i += 2)
+    {
+        if (!strcmp(argv[i], "type"))
+        {
+            if (!strcmp(argv[i + 1], "private"))
+            {
+                privkey = TRUE;
+printf("%s type = private\n",__func__);
+                qti_pkcs11_config_init_private(pObject, "", 0);
+            }
+            else if (!strcmp(argv[i + 1], "public"))
+            {
+printf("%s type = public\n",__func__);
+                qti_pkcs11_config_init_public(pObject, "", 0);
+            }
+        }
+        else if (!strcmp(argv[i], "label"))
+        {
+printf("%s label = %s\n",__func__, argv[i + 1]);
+            strlcpy(pObject->name, argv[i + 1], sizeof(pObject->name));
+        }
+    }
+
+    if (!rv && privkey)
+    {
+printf("%s %d\n",__func__, __LINE__);
+        /* Have to create a public copy of private keys */
+        pkcs11_object_ptr pPubkey = NULL;
+        rv = qti_pkcs11_object_alloc(&pPubkey);
+        if (!rv && pPubkey)
+        {
+printf("%s %d\n",__func__, __LINE__);
+            pPubkey->slot = slot;
+            pPubkey->flags = pObject->flags;
+            qti_pkcs11_config_init_public(pPubkey, pObject->name, strlen(pObject->name));
+        }
+        else
+        {
+            qti_pkcs11_object_free(pObject);
+        }
+    }
+
+    return rv;
+}
+
+/* Load objects from the file store for a given slot */
+CK_RV qti_pkcs11_config_load_objects(pkcs11_slot_ctx_ptr pSlot)
+{
+    FILE* fp;
+    char buffer[MAX_OBJ_FILE_SZ];
+    size_t buflen;
+    char* argv[PKCS11_MAX_OBJECTS_ALLOWED + 1];
+    int argc = 0;
+    char filename[200];
+    int j;
+    CK_RV rv;
+    char cwd[100];
+
+printf("%s %d\n",__func__, __LINE__);
+
+    if (!getcwd(cwd, sizeof(cwd)) != NULL) {
+	 printf("Error: Unable to save in cwd \n");
+  	 return;
+    }
+
+    for (j = 0; j < PKCS11_MAX_OBJECTS_ALLOWED; j++)
+    {
+            (void)snprintf(filename, sizeof(filename), "%s%d.%d.conf", cwd, pSlot->slot_id, j);
+            fp = fopen(filename, "rb");
+
+            if (fp)
+            {
+                buflen = qti_pkcs11_config_load_file(fp, buffer);
+                fclose(fp);
+                fp = NULL;
+
+                /* Remove the slot from the free list*/
+                pSlot->flags &= ~(1 << j);
+
+                if (0 < buflen)
+                {
+                    if (0 < (argc = qti_pkcs11_config_parse_buffer(buffer, buflen, sizeof(argv) / sizeof(argv[0]), argv)))
+                    {
+                        rv = qti_pkcs11_config_parse_object_file(pSlot, j, argc, argv);
+                    }
+                    else
+                    {
+                        PKCS11_DEBUG("Failed to parse the slot configuration file");
+                    }
+                }
+            }
+     }
 }
 
 CK_RV qti_pkcs11_key_generate_pair
@@ -1038,8 +1278,9 @@ CK_RV qti_pkcs11_key_generate_pair
     pkcs11_session_ctx_ptr pSession;
     pkcs11_object_ptr pPublic = NULL;
     pkcs11_object_ptr pPrivate = NULL;
-    int i;
+    pkcs11_slot_ctx_ptr slot_ctx;
     CK_RV rv = CKR_OK;
+    int i;
 
     rv = qti_pkcs11_init_check(&pLibCtx, FALSE);
     if (rv)
@@ -1105,10 +1346,13 @@ CK_RV qti_pkcs11_key_generate_pair
         }
     }
 
+    slot_ctx = (pkcs11_slot_ctx_ptr)pSession->slot;
+
     if (CKR_OK == rv)
     {
         pPrivate->class_id = CKO_PRIVATE_KEY;
         qti_pkcs11_config_init_private(pPrivate, pName->pValue, pName->ulValueLen);
+	qti_pkcs11_save_obj_store(slot_ctx, "private", pPrivate);
     }
 
 if (CKR_OK == rv)
@@ -1121,6 +1365,10 @@ if (CKR_OK == rv)
         pPublic->attributes = pkcs11_key_public_attributes;
         pPublic->count = pkcs11_key_public_attributes_count;
         pPublic->size = 64;
+	pPublic->flags = PKCS11_OBJECT_FLAG_DESTROYABLE;
+
+        qti_pkcs11_config_init_public(pPublic, pName->pValue, pName->ulValueLen);
+        qti_pkcs11_save_obj_store(slot_ctx, "public", pPublic);
     }
 
     if (CKR_OK == rv)

@@ -229,20 +229,14 @@ printf("%s %d\n",__func__, __LINE__);
     {
         return CKR_CRYPTOKI_NOT_INITIALIZED;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!pInfo)
     {
         return CKR_ARGUMENTS_BAD;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     /* Initialize the input structure */
     memset(pInfo, 0, sizeof(CK_SLOT_INFO));
-printf("%s %d\n",__func__, __LINE__);
-
 
     slot_ctx = qti_pkcs11_slot_get_context(lib_ctx, slotID);
 
@@ -250,8 +244,6 @@ printf("%s %d\n",__func__, __LINE__);
     {
         return CKR_SLOT_ID_INVALID;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     /* Default version information */
     pInfo->hardwareVersion.major = (CK_BYTE)CRYPTOKI_VERSION_MAJOR;
@@ -266,8 +258,6 @@ printf("%s %d\n",__func__, __LINE__);
 
     /* Use the same manufacturer ID we use throughout */
     snprintf((char*)pInfo->manufacturerID, sizeof(pInfo->manufacturerID), "%s", pkcs11_lib_manufacturer_id);
-printf("%s %d\n",__func__, __LINE__);
-
 
     return CKR_OK;
 }

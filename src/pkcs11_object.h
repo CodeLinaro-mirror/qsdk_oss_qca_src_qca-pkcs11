@@ -81,5 +81,6 @@ CK_RV qti_pkcs11_find_continue(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE_PTR 
 CK_RV qti_pkcs11_find_finish(CK_SESSION_HANDLE hSession);
 
 CK_RV qti_pkcs11_init_check(pkcs11_lib_ctx_ptr * ppContext, CK_BBOOL lock);
+CK_RV qti_pkcs11_config_load_objects(pkcs11_slot_ctx_ptr pSlot);
 
 #endif /* PKCS11_OBJECT_H_ */

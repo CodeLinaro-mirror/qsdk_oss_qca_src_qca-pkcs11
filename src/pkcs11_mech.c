@@ -110,7 +110,7 @@ CK_RV qti_pkcs11_mech_get_list(CK_SLOT_ID slotID, CK_MECHANISM_TYPE_PTR pMechani
 
 CK_RV qti_pkcs_mech_get_info(CK_SLOT_ID slotID, CK_MECHANISM_TYPE type, CK_MECHANISM_INFO_PTR pInfo)
 {
-    pkcs11_lib_ctx_ptr lib_ctx = pkcs11_get_context();
+    pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
     pkcs11_slot_ctx_ptr slot_ctx;
     CK_MECHANISM_INFO_PTR mech_info_ptr = NULL_PTR;
 

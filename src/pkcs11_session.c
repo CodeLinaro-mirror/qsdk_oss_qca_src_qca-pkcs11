@@ -205,7 +205,8 @@ CK_RV qti_pkcs11_session_open(
     /* notify callback is not yet handled, Fix it later */
 
     /* Generate dummy private key for this session */
-	qti_pkcs11_generate_key_dummy((CK_SESSION_HANDLE)session_ctx);
+//  qti_pkcs11_generate_key_dummy((CK_SESSION_HANDLE)session_ctx);
+    qti_pkcs11_config_load_objects(slot_ctx);
 
     return CKR_OK;
 }

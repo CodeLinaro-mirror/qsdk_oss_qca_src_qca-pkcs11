@@ -9,6 +9,7 @@
 
 #include "cryptoki.h"
 #include "pkcs11_init.h"
+#include "pkcs11_object.h"
 
 #define PKCS11_MAX_SESSIONS_ALLOWED 10
 
