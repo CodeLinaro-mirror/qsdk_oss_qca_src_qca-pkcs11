@@ -56,6 +56,7 @@ static void qti_pkcs11_mech_fill_list(CK_MECHANISM_TYPE_PTR pMechanismList, pcks
         for (i = 0; i < count; i++)
         {
             pMechanismList[i] = pMechanismInfoList[i].type;
+	    printf("### %s pMechanismList->type %d count %d ###\n",__func__, pMechanismInfoList[i].type, count);
         }
     }
 }
@@ -105,6 +106,7 @@ CK_RV qti_pkcs11_mech_get_list(CK_SLOT_ID slotID, CK_MECHANISM_TYPE_PTR pMechani
 
     *pulCount = mech_cnt;
 
+    printf("### %s total count %d ###\n", __func__, mech_cnt);
     return CKR_OK;
 }
 
