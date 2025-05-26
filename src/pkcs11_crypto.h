@@ -7,6 +7,7 @@
 #define PKCS11_CRYPTO_H_
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -46,5 +47,9 @@ struct ecdsa_points {
 #define QSEECOM_GET_EC_POINTS		_IOWR('Q', 9, struct ecdsa_points)
 
 CK_RV pkcs11_slot_init(CK_SLOT_ID slotID);
-
+CK_RV qti_pkcs11_signature_sign_init(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism,
+				     CK_OBJECT_HANDLE hKey);
+CK_RV qti_pkcs11_signature_sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData,
+				CK_ULONG ulDataLen, CK_BYTE_PTR pSignature,
+				CK_ULONG_PTR pulSignatureLen);
 #endif

@@ -42,6 +42,7 @@ void qti_pkcs11_addattr_s(PKCS11_TEMPLATE *tmpl, int type, const char *s)
 
 //#define pkcs11_addattr_var(_tmpl, _type, _var) pkcs11_addattr(_tmpl, _type, &(_var), sizeof(_var))
 
+/* Commenting the dummy key support
 static void qti_pkcs11_generate_key_dummy(CK_SESSION_HANDLE session)
 {
 
@@ -57,7 +58,6 @@ static void qti_pkcs11_generate_key_dummy(CK_SESSION_HANDLE session)
 	id = "0";
 	id_len = sizeof(id);
 
-      /* Now build the key attrs */
 //        qti_pkcs11_addattr_var(&tmpl, CKA_CLASS, CKO_PRIVATE_KEY);
 
 	qti_pkcs11_addattr(&tmpl, CKA_CLASS, &class_type,sizeof(class_type));
@@ -78,7 +78,7 @@ static void qti_pkcs11_generate_key_dummy(CK_SESSION_HANDLE session)
 //        qti_pkcs11_addattr_var(&tmpl,  CKA_KEY_TYPE, key_type_ECDSA);
 
         C_CreateObject(session, tmpl.attrs, tmpl.nattr, &object);
-}
+} */
 
 /**
  * \defgroup pkcs11 Session Management (pkcs11_)

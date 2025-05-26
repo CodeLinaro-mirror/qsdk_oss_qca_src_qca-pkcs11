@@ -67,7 +67,7 @@ CK_RV qti_pkcs11_signature_sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, C
     pkcs11_object_ptr pKey;
     struct ecdsa_sign sign = {0};
     CK_RV rv;
-    int fd, i;
+    int fd;
 
     rv = qti_pkcs11_init_check(&pLibCtx, FALSE);
     if (rv)
@@ -91,8 +91,6 @@ CK_RV qti_pkcs11_signature_sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, C
     if ((pData == NULL) || (pSignature == NULL) || !ulDataLen || !pulSignatureLen)
         return CKR_ARGUMENTS_BAD;
 
-    for(i=0; i<ulDataLen; i=i+4)
-	    printf("%x", *((unsigned int *)pData + 1));
     sign.key_handle = pSession->active_object;
     sign.data = pData;
     sign.data_len = ulDataLen;
@@ -114,93 +112,6 @@ CK_RV qti_pkcs11_signature_sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, C
     *pulSignatureLen = sign.signature_out_len;
 
 close_fd:
-    close(fd);
-
-    return rv;
-}
-
-CK_RV qti_pkcs11_signature_verify_init(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
-{
-    pkcs11_session_ctx_ptr pSession;
-    pkcs11_object_ptr pObject;
-    CK_RV rv;
-
-    rv = qti_pkcs11_init_check(NULL_PTR, FALSE);
-    if (rv)
-    {
-        return rv;
-    }
-
-    if (!pMechanism)
-    {
-        return CKR_ARGUMENTS_BAD;
-    }
-
-    rv = qti_pkcs11_session_check(&pSession, hSession);
-    if (rv)
-    {
-        return rv;
-    }
-
-    rv = qti_pkcs11_object_check(&pObject, hKey);
-    if (rv)
-    {
-        return rv;
-    }
-
-    pSession->active_object = hKey;
-
-    return CKR_OK;
-}
-
-CK_RV qti_pkcs11_signature_verify(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pSignature, CK_ULONG ulSignatureLen)
-{
-    pkcs11_lib_ctx_ptr pLibCtx = NULL;
-    pkcs11_session_ctx_ptr pSession;
-    pkcs11_object_ptr pKey;
-    struct ecdsa_verify verify;
-    CK_RV rv;
-    int fd;
-
-    rv = qti_pkcs11_init_check(&pLibCtx, FALSE);
-    if (rv)
-    {
-        return rv;
-    }
-
-    rv = qti_pkcs11_session_check(&pSession, hSession);
-    if (rv)
-    {
-        return rv;
-    }
-
-    rv = qti_pkcs11_object_check(&pKey, pSession->active_object);
-    if (rv)
-    {
-        return rv;
-    }
-
-    if ((pData == NULL) || (pSignature == NULL) || !ulDataLen || !ulSignatureLen)
-        return CKR_ARGUMENTS_BAD;
-
-    verify.key_handle = pSession->active_object;
-    verify.data = pData;
-    verify.data_len = ulDataLen;
-    verify.signature = pSignature;
-    verify.signature_len = ulSignatureLen;
-
-    fd = open(qseecom_device, O_RDWR);
-    if (fd < 0) {
-	    printf("Cannot open device file: %s\n", qseecom_device);
-	    return CKR_DEVICE_ERROR;
-    }
-
-    rv = ioctl(fd, QSEECOM_ECDSA_VERIFY, &verify);
-    if (rv || verify.result) {
-	printf("Failed on Data Verify, rv=%lu, result=%u\n", rv, verify.result);
-	rv = CKR_FUNCTION_FAILED;
-    }
-
     close(fd);
 
     return rv;

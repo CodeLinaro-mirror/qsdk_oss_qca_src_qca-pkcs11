@@ -60,22 +60,16 @@ void qti_pkcs11_util_escape_string(CK_UTF8CHAR_PTR buf, CK_ULONG buf_len)
 CK_RV qti_pkcs11_get_lib_info(CK_INFO_PTR pInfo)
 {
     pkcs11_lib_ctx_ptr ctx = qti_pkcs11_get_context();
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!ctx || !ctx->initialized)
     {
         return CKR_CRYPTOKI_NOT_INITIALIZED;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!pInfo)
     {
         return CKR_ARGUMENTS_BAD;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     /* Must be zero for 3.0 */
     pInfo->flags = 0;
@@ -112,31 +106,21 @@ CK_RV qti_pkcs11_init(CK_C_INITIALIZE_ARGS_PTR pInitArgs)
 	pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
 	pkcs11_slot_ctx_ptr slot_ctx;
 
-printf("%s %d\n",__func__, __LINE__);
-
 	if (lib_ctx->initialized)
 		return CKR_CRYPTOKI_ALREADY_INITIALIZED;
-printf("%s %d\n",__func__, __LINE__);
 
 	if (pInitArgs) {
 
 	         allset = (pInitArgs->CreateMutex && pInitArgs->DestroyMutex && pInitArgs->LockMutex && pInitArgs->UnlockMutex);
         	 allunset = (!pInitArgs->CreateMutex && !pInitArgs->DestroyMutex && !pInitArgs->LockMutex && !pInitArgs->UnlockMutex);
-	printf("%s %d\n",__func__, __LINE__);
-
 
 		/* If Locking args are partially set, return arguments are bad */
 		if ((!allset && !allunset) || pInitArgs->pReserved)
 			return CKR_ARGUMENTS_BAD;
 
-printf("%s %d\n",__func__, __LINE__);
-
-
 		/* Locking is not supported, only single threaded */
 		if (allset)
 			return CKR_CANT_LOCK;
-printf("%s %d\n",__func__, __LINE__);
-
 	}
 
 	/*
@@ -147,14 +131,11 @@ printf("%s %d\n",__func__, __LINE__);
 	 */
 	if (!qti_pkcs11_slot_init(0)) {
 		lib_ctx->slot_cnt = PKCS11_MAX_SLOTS_ALLOWED;
-printf("%s %d\n",__func__, __LINE__);
 		lib_ctx->initialized = TRUE; 
 
 	        slot_ctx = qti_pkcs11_slot_get_context(lib_ctx, 0);
 		slot_ctx->initialized = TRUE;
 	}
-printf("%s %d\n",__func__, __LINE__);
-
 
 	return CKR_OK;
 }
@@ -222,8 +203,6 @@ CK_RV qti_pkcs11_slot_get_info(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
 {
     pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
     pkcs11_slot_ctx_ptr slot_ctx;
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!lib_ctx || !lib_ctx->initialized)
     {
@@ -269,22 +248,16 @@ CK_RV qti_pkcs11_token_get_info(CK_SLOT_ID slotID, CK_TOKEN_INFO_PTR pInfo)
 {
     pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
     pkcs11_slot_ctx_ptr slot_ctx;
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!lib_ctx || !lib_ctx->initialized)
     {
         return CKR_CRYPTOKI_NOT_INITIALIZED;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     if (!pInfo)
     {
         return CKR_ARGUMENTS_BAD;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     /* Initialize the target structure */
     memset(pInfo, 0, sizeof(CK_TOKEN_INFO));
@@ -295,8 +268,6 @@ printf("%s %d\n",__func__, __LINE__);
     {
         return CKR_SLOT_ID_INVALID;
     }
-printf("%s %d\n",__func__, __LINE__);
-
 
     /* Default Info Fields */
     pInfo->hardwareVersion.major = (CK_BYTE)CRYPTOKI_VERSION_MAJOR;
@@ -309,8 +280,7 @@ printf("%s %d\n",__func__, __LINE__);
     pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
     pInfo->ulMaxPinLen = 0;
     pInfo->ulMinPinLen = 0;
-    pInfo->flags = CKF_RNG;
-
+    pInfo->flags = CKF_RNG | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
     pInfo->ulMaxSessionCount = 1;
     pInfo->ulMaxRwSessionCount = 1;
 
@@ -322,9 +292,6 @@ printf("%s %d\n",__func__, __LINE__);
   //  snprintf((char*)pInfo->model, sizeof(pInfo->model), "%s", pkcs11_lib_model);
     snprintf((char*)pInfo->label, sizeof(pInfo->label), "%s", pkcs11_lib_label);
     //snprintf((char*)pInfo->serialNumber, sizeof(pInfo->serialNumber), "%s", pkcs11_lib_serialnumber);
-
-printf("%s %d\n",__func__, __LINE__);
-
 
     return CKR_OK;
 }

@@ -23,8 +23,9 @@ typedef struct _pcks11_mech_table_e
 
 /* CK_MECHANISM_TYPE, MinKeySize, MaxKeySize, Flags */
 static pcks11_mech_table_e pkcs11_mech_list_Trusted_app[] = {
-    { CKM_EC_KEY_PAIR_GEN,{ 256, 256, CKF_HW | CKF_GENERATE | CKF_GENERATE_KEY_PAIR | PCKS11_MECH_ECC508_EC_CAPABILITY } },
-    { CKM_ECDSA,{ 256, 256, CKF_HW | CKF_SIGN | CKF_VERIFY | PCKS11_MECH_ECC508_EC_CAPABILITY } },
+//    { CKM_EC_KEY_PAIR_GEN,{ 256, 256, CKF_HW | CKF_GENERATE | CKF_GENERATE_KEY_PAIR | PCKS11_MECH_ECC508_EC_CAPABILITY } },
+    { CKM_ECDSA,{ 384, 521, CKF_HW | CKF_SIGN } },
+    { CKM_ECDSA_SHA384, {384, 521, CKF_HW | CKF_SIGN } },
 };
 
 #define TABLE_SIZE(x)   sizeof(x) / sizeof(x[0])
@@ -56,7 +57,6 @@ static void qti_pkcs11_mech_fill_list(CK_MECHANISM_TYPE_PTR pMechanismList, pcks
         for (i = 0; i < count; i++)
         {
             pMechanismList[i] = pMechanismInfoList[i].type;
-	    printf("### %s pMechanismList->type %d count %d ###\n",__func__, pMechanismInfoList[i].type, count);
         }
     }
 }
@@ -106,7 +106,6 @@ CK_RV qti_pkcs11_mech_get_list(CK_SLOT_ID slotID, CK_MECHANISM_TYPE_PTR pMechani
 
     *pulCount = mech_cnt;
 
-    printf("### %s total count %d ###\n", __func__, mech_cnt);
     return CKR_OK;
 }
 

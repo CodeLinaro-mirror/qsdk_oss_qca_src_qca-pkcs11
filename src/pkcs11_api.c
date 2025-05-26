@@ -12,6 +12,10 @@
 #include "cryptoki.h"
 #include "pkcs11_debug.h"
 #include "pkcs11_mech.h"
+#include "pkcs11_init.h"
+#include "pkcs11_session.h"
+#include "pkcs11_object.h"
+#include "pkcs11_crypto.h"
 
 static const CK_FUNCTION_LIST pkcs11FunctionList = {
 	.version = {
@@ -137,7 +141,7 @@ CK_RV C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR ppFunctionList)
         return CKR_ARGUMENTS_BAD;
     }
 
-    *ppFunctionList = &pkcs11FunctionList;
+    *ppFunctionList = (CK_FUNCTION_LIST_PTR)&pkcs11FunctionList;
 
     return CKR_OK;
 }

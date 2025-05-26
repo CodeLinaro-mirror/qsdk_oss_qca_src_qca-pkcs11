@@ -29,7 +29,7 @@ typedef struct _pkcs11_session_ctx
 } pkcs11_session_ctx, *pkcs11_session_ctx_ptr;
 
 CK_RV qti_pkcs11_session_check(pkcs11_session_ctx_ptr * pSession, CK_SESSION_HANDLE hSession);
-
+CK_RV qti_pkcs11_session_login(CK_SESSION_HANDLE hSession, CK_USER_TYPE userType, CK_UTF8CHAR_PTR pPin, CK_ULONG ulPinLen);
 CK_RV qti_pkcs11_session_get_info(CK_SESSION_HANDLE hSession, CK_SESSION_INFO_PTR pInfo);
 CK_RV qti_pkcs11_session_open(CK_SLOT_ID slotID, CK_FLAGS flags, CK_VOID_PTR pApplication, CK_NOTIFY notify, CK_SESSION_HANDLE_PTR phSession);
 CK_RV qti_pkcs11_session_close(CK_SESSION_HANDLE hSession);

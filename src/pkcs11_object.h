@@ -76,11 +76,15 @@ CK_RV qti_pkcs11_object_destroy(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hOb
 
 CK_RV qti_pkcs11_object_deinit(pkcs11_lib_ctx_ptr pContext);
 
+CK_RV qti_pkcs11_find_get_attribute(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount);
 CK_RV qti_pkcs11_find_init(CK_SESSION_HANDLE hSession, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount);
 CK_RV qti_pkcs11_find_continue(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE_PTR phObject, CK_ULONG ulMaxObjectCount, CK_ULONG_PTR pulObjectCount);
 CK_RV qti_pkcs11_find_finish(CK_SESSION_HANDLE hSession);
 
 CK_RV qti_pkcs11_init_check(pkcs11_lib_ctx_ptr * ppContext, CK_BBOOL lock);
 CK_RV qti_pkcs11_config_load_objects(pkcs11_slot_ctx_ptr pSlot);
-
+CK_RV qti_pkcs11_key_generate_pair (CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism,
+				    CK_ATTRIBUTE_PTR pPublicKeyTemplate, CK_ULONG ulPublicKeyAttributeCount,
+				    CK_ATTRIBUTE_PTR pPrivateKeyTemplate, CK_ULONG ulPrivateKeyAttributeCount,
+				    CK_OBJECT_HANDLE_PTR phPublicKey, CK_OBJECT_HANDLE_PTR phPrivateKey);
 #endif /* PKCS11_OBJECT_H_ */
