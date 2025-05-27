@@ -412,9 +412,12 @@ CK_RV qti_pkcs11_object_alloc(pkcs11_object_ptr * ppObject)
     return i;
 }
 
-CK_RV qti_pkcs11_object_free(pkcs11_object_ptr pObject)
+CK_RV qti_pkcs11_object_free(pkcs11_slot_ctx_ptr pSlot, pkcs11_object_ptr pObject)
 {
+    FILE *fp;
     CK_ULONG i;
+    char cwd[100];
+    char filename[200];
 
     for (i = 0; i < PKCS11_MAX_OBJECTS_ALLOWED; i++)
     {
@@ -423,6 +426,17 @@ CK_RV qti_pkcs11_object_free(pkcs11_object_ptr pObject)
             /* Delink it */
             pkcs11_object_cache[i].object = NULL_PTR;
             pkcs11_object_cache[i].handle = 0;
+
+            if (getcwd(cwd, sizeof(cwd)) == NULL) {
+		    printf("Error: Unable to save in cwd \n");
+		    continue;
+	    }
+
+	    (void)snprintf(filename, sizeof(filename), "%s%lu.%ld.conf", cwd, pSlot->slot_id, i);
+	    if (remove(filename) == 0)
+		    printf("Deleted object %s\n", filename);
+	    else
+		    printf("Error deleting object %s\n", filename);
         }
     }
 
@@ -1030,7 +1044,7 @@ CK_RV qti_pkcs11_object_destroy(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hOb
 
     if (pObject->flags & PKCS11_OBJECT_FLAG_DESTROYABLE)
     {
-        return qti_pkcs11_object_free(pObject);
+        return qti_pkcs11_object_free((pkcs11_slot_ctx_ptr)pSession->slot, pObject);
     }
     else
     {
@@ -1041,15 +1055,18 @@ CK_RV qti_pkcs11_object_destroy(CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hOb
 /* Interal function to clean up resources */
 CK_RV qti_pkcs11_object_deinit(pkcs11_lib_ctx_ptr pContext)
 {
-    CK_RV rv = CKR_OK;
     int i;
+    CK_RV rv = CKR_OK;
+    pkcs11_slot_ctx_ptr slot_ctx;
+
+    slot_ctx = qti_pkcs11_slot_get_context(pContext, 0);
 
     for (i = 0; i < PKCS11_MAX_OBJECTS_ALLOWED; i++)
     {
         pkcs11_object_ptr pObj = pkcs11_object_cache[i].object;
         if (pObj)
         {
-            CK_RV tmp = qti_pkcs11_object_free(pObj);
+            CK_RV tmp = qti_pkcs11_object_free(slot_ctx, pObj);
             if (!rv)
             {
                 rv = tmp;
@@ -1263,7 +1280,6 @@ static CK_RV qti_pkcs11_config_parse_object_file(pkcs11_slot_ctx_ptr slot_ctx, C
 #ifdef XXX //TBD
     if (!rv && privkey)
     {
-        /* Have to create a public copy of private keys */
         pkcs11_object_ptr pPubkey = NULL;
         rv = qti_pkcs11_object_alloc(&pPubkey);
         if (pPubkey)
@@ -1449,11 +1465,11 @@ if (CKR_OK == rv)
     {
         if (pPrivate)
         {
-            qti_pkcs11_object_free(pPrivate);
+            qti_pkcs11_object_free(slot_ctx, pPrivate);
         }
         if (pPublic)
         {
-            qti_pkcs11_object_free(pPublic);
+            qti_pkcs11_object_free(slot_ctx, pPublic);
         }
     }
 

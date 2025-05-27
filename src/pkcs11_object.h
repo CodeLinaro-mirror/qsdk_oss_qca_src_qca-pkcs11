@@ -60,7 +60,7 @@ extern const CK_ULONG pkcs11_object_monotonic_attributes_count;
 #define PKCS11_OBJECT_FLAG_DYNAMIC          0x04
 
 CK_RV qti_pkcs11_object_alloc(pkcs11_object_ptr * ppObject);
-CK_RV qti_pkcs11_object_free(pkcs11_object_ptr pObject);
+CK_RV qti_pkcs11_object_free(pkcs11_slot_ctx_ptr pSlot, pkcs11_object_ptr pObject);
 CK_RV qti_pkcs11_object_check(pkcs11_object_ptr * ppObject, CK_OBJECT_HANDLE handle);
 CK_RV qti_pkcs11_object_find(pkcs11_object_ptr * ppObject, CK_ATTRIBUTE_PTR pTemplate, CK_ULONG ulCount);
 
