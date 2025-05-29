@@ -25,11 +25,12 @@ void print_usage(void)
 	printf("\n4. pkcs_test_app 4 <key_handle>\n\n");
 	printf("    set key_handle ioctl will be called with the given key_handle\n");
 
-	printf("\n5. pkcs_test_app 5 <data_file>\n\n");
-	printf("    Sign ioctl will be called with the given data_file and output signature will be stored at sig_data\n");
+	printf("\n5. pkcs_test_app 5 <digest_file>\n\n");
+	printf("    Sign ioctl will be called with the given digest_file and output signature will be stored at sig_data\n"
+	       "    Max supported Digest size is 64 bytes\n");
 
-	printf("\n6. pkcs_test_app 6 <data_file> <sig_data>\n\n");
-	printf("    Verify ioctl will be called with the given data_file and signature file\n");
+	printf("\n6. pkcs_test_app 6 <digest_file> <sig_data>\n\n");
+	printf("    Verify ioctl will be called with the given digest_file and signature file\n");
 
 	printf("\n7. pkcs_test_app 7\n\n");
 	printf("    Unload TA Library ioctl will be called.\n");
@@ -40,7 +41,7 @@ void print_usage(void)
 
 int ecdsa_import_key(const char *path)
 {
-	struct ecdsa_import_key key;
+	struct ecdsa_import_key key = {0};
 	int fd_blob, fd_ioctl, ret;
 	struct stat st;
 
@@ -70,7 +71,7 @@ int ecdsa_import_key(const char *path)
 
 	ret = ioctl(fd_ioctl, QSEECOM_ECDSA_IMPORT_KEY, &key);
 	if (ret || key.result) {
-		printf("QSEECOM_ECDSA_IMPORT_KEY failed, %d %d 0x%x\n", ret, key.result, key.key_handle);
+		printf("QSEECOM_ECDSA_IMPORT_KEY failed, ret = %d, result = %d\n", ret, key.result);
 		goto close_ioctl;
 	}
 
@@ -193,7 +194,7 @@ int unload_ta(void)
 int ecdsa_sign(const char *file1)
 {
 	int fd_data, fd_ioctl, fd_sig, ret;
-	struct ecdsa_sign sign;
+	struct ecdsa_sign sign = {0};
 	struct stat st;
 
 	fd_data = open(file1, O_RDONLY);
@@ -203,6 +204,12 @@ int ecdsa_sign(const char *file1)
 	}
 
 	fstat(fd_data, &st);
+
+	if (st.st_size > MAX_DIGEST_SIZE) {
+		printf("Digest size exceeds MAX size %d\n", MAX_DIGEST_SIZE);
+		ret = -EINVAL;
+		goto close_data;
+	}
 
 	sign.data = malloc(st.st_size);
 	sign.data_len = st.st_size;
@@ -223,7 +230,7 @@ int ecdsa_sign(const char *file1)
 
 	ret = ioctl(fd_ioctl, QSEECOM_ECDSA_SIGN, &sign);
 	if (ret || sign.result) {
-		printf("QSEECOM_ECDSA_SIGN failed, %d %d\n", ret, sign.result);
+		printf("QSEECOM_ECDSA_SIGN failed, ret = %d, result = %d\n", ret, sign.result);
 		goto close_ioctl;
 	}
 
@@ -252,6 +259,7 @@ free_data:
 	free(sign.signature);
 	free(sign.data);
 
+close_data:
 	close(fd_data);
 
 	return ret;
@@ -260,7 +268,7 @@ free_data:
 int ecdsa_verify(const char *file1, const char *file2)
 {
 	int fd_data, fd_ioctl, fd_sig, ret;
-	struct ecdsa_verify verify;
+	struct ecdsa_verify verify = {0};
 	struct stat st;
 
 	fd_data = open(file1, O_RDONLY);
@@ -270,6 +278,12 @@ int ecdsa_verify(const char *file1, const char *file2)
 	}
 
 	fstat(fd_data, &st);
+
+	if (st.st_size > MAX_DIGEST_SIZE) {
+		printf("Digest size exceeds MAX size %d\n", MAX_DIGEST_SIZE);
+		ret = -EINVAL;
+		goto close_data;
+	}
 
 	verify.data = malloc(st.st_size);
 	verify.data_len = st.st_size;
@@ -306,7 +320,7 @@ int ecdsa_verify(const char *file1, const char *file2)
 
 	ret = ioctl(fd_ioctl, QSEECOM_ECDSA_VERIFY, &verify);
 	if (ret || verify.result) {
-		printf("QSEECOM_ECDSA_VERIFY failed, %d %d\n", ret, verify.result);
+		printf("QSEECOM_ECDSA_VERIFY failed, ret = %d, result = %d\n", ret, verify.result);
 		goto close_ioctl;
 	}
 
@@ -320,6 +334,7 @@ free_sig:
 	close(fd_sig);
 free_data:
 	free(verify.data);
+close_data:
 	close(fd_data);
 
 	return ret;

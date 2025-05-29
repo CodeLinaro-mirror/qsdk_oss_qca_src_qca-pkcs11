@@ -26,6 +26,8 @@
 #define ELIBEXEC	7
 #define EOPNOTSUPP	8
 
+#define MAX_DIGEST_SIZE		64
+
 const char *qseecom_device = "/dev/qseecom_device";
 
 struct ecdsa_import_key {
