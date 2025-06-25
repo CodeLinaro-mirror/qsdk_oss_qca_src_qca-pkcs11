@@ -414,7 +414,6 @@ CK_RV qti_pkcs11_object_alloc(pkcs11_object_ptr * ppObject)
 
 CK_RV qti_pkcs11_object_free(pkcs11_slot_ctx_ptr pSlot, pkcs11_object_ptr pObject)
 {
-    FILE *fp;
     CK_ULONG i;
     char cwd[100];
     char filename[200];
