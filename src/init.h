@@ -4,11 +4,11 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
 
-#ifndef PKCS11_INIT_H_
-#define PKCS11_INIT_H_
+#ifndef INIT_H_
+#define INIT_H_
 
 #include "cryptoki.h"
-#include "pkcs11_crypto.h"
+#include "crypto.h"
 
 /** Library Context */
 typedef struct _pkcs11_lib_ctx
@@ -25,7 +25,7 @@ typedef struct _pkcs11_slot_ctx
     CK_SLOT_ID         slot_id;
     CK_SESSION_HANDLE  session;
     CK_FLAGS           flags;
-} pkcs11_slot_ctx, *pkcs11_slot_ctx_ptr;
+} pkcs11_slot_ctx, *qti_pkcs11_slot_ctx_ptr;
 
 /* init functions */
 pkcs11_lib_ctx_ptr qti_pkcs11_get_context(void);
@@ -34,7 +34,7 @@ CK_RV qti_pkcs11_deinit(CK_VOID_PTR pReserved);
 CK_RV qti_pkcs11_get_lib_info(CK_INFO_PTR pInfo);
 
 /* slot/token functions */
-pkcs11_slot_ctx_ptr qti_pkcs11_slot_get_context(pkcs11_lib_ctx_ptr lib_ctx, CK_SLOT_ID slotID);
+qti_pkcs11_slot_ctx_ptr qti_pkcs11_slot_get_context(pkcs11_lib_ctx_ptr lib_ctx, CK_SLOT_ID slotID);
 
 CK_RV qti_pkcs11_slot_get_list(CK_BBOOL tokenPresent, CK_SLOT_ID_PTR pSlotList, CK_ULONG_PTR pulCount);
 CK_RV qti_pkcs11_slot_get_info(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo);

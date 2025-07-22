@@ -4,7 +4,7 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
 
-#include "pkcs11_init.h"
+#include "init.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -33,7 +33,7 @@ pkcs11_lib_ctx_ptr qti_pkcs11_get_context(void)
     return &pkcs11_context;
 }
 
-pkcs11_slot_ctx_ptr qti_pkcs11_slot_get_context(pkcs11_lib_ctx_ptr lib_ctx,
+qti_pkcs11_slot_ctx_ptr qti_pkcs11_slot_get_context(pkcs11_lib_ctx_ptr lib_ctx,
 					    CK_SLOT_ID slotID)
 {
    return &pkcs11_slot_context;
@@ -104,7 +104,7 @@ CK_RV qti_pkcs11_init(CK_C_INITIALIZE_ARGS_PTR pInitArgs)
 	CK_BBOOL allunset = FALSE;
 
 	pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
-	pkcs11_slot_ctx_ptr slot_ctx;
+	qti_pkcs11_slot_ctx_ptr slot_ctx;
 
 	if (lib_ctx->initialized)
 		return CKR_CRYPTOKI_ALREADY_INITIALIZED;
@@ -202,7 +202,7 @@ CK_RV qti_pkcs11_slot_get_list(CK_BBOOL tokenPresent, CK_SLOT_ID_PTR pSlotList, 
 CK_RV qti_pkcs11_slot_get_info(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
 {
     pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
-    pkcs11_slot_ctx_ptr slot_ctx;
+    qti_pkcs11_slot_ctx_ptr slot_ctx;
 
     if (!lib_ctx || !lib_ctx->initialized)
     {
@@ -247,7 +247,7 @@ CK_RV qti_pkcs11_slot_get_info(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
 CK_RV qti_pkcs11_token_get_info(CK_SLOT_ID slotID, CK_TOKEN_INFO_PTR pInfo)
 {
     pkcs11_lib_ctx_ptr lib_ctx = qti_pkcs11_get_context();
-    pkcs11_slot_ctx_ptr slot_ctx;
+    qti_pkcs11_slot_ctx_ptr slot_ctx;
 
     if (!lib_ctx || !lib_ctx->initialized)
     {

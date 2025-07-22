@@ -3,8 +3,8 @@
  * All rights reserved.
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
-#ifndef PKCS11_CRYPTO_H_
-#define PKCS11_CRYPTO_H_
+#ifndef CRYPTO_H_
+#define CRYPTO_H_
 
 #include <stdio.h>
 #include <string.h>

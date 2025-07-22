@@ -15,7 +15,7 @@ all: $(LIBRARY) $(TARGET)
 	$(call progress, Building $@)
 	${Q}$(CC) ${DEBUG} ${LIBDIRS} ${INCDIRS} $(CFLAGS) ${LIBS} -c $^
 
-$(LIBRARY): src/pkcs11_crypto.c src/pkcs11_api.c src/pkcs11_session.c src/pkcs11_object.c src/pkcs11_mech.c src/pkcs11_init.c
+$(LIBRARY): src/crypto.c src/pkcs11_api.c src/session.c src/object.c src/mechanism.c src/init.c
 	$(call progress, Building $@)
 	${Q}$(CC) ${DEBUG} ${LIBDIRS} ${INCDIRS} $(CFLAGS) ${LIBS} -shared -o $@.debug $^
 	${Q}$(STRIP) $@.debug -o $@

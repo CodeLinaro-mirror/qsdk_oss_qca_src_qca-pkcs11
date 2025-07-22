@@ -4,10 +4,10 @@
  * Confidential and Proprietary - Qualcomm Technologies, Inc.
  */
 
-#include "pkcs11_crypto.h"
-#include "pkcs11_session.h"
-#include "pkcs11_init.h"
-#include "pkcs11_object.h"
+#include "crypto.h"
+#include "session.h"
+#include "init.h"
+#include "object.h"
 
 const char *qseecom_device = "/dev/qseecom_device";
 
@@ -28,8 +28,8 @@ CK_RV qti_pkcs11_slot_init(CK_SLOT_ID slotID)
 
 CK_RV qti_pkcs11_signature_sign_init(CK_SESSION_HANDLE hSession, CK_MECHANISM_PTR pMechanism, CK_OBJECT_HANDLE hKey)
 {
-    pkcs11_session_ctx_ptr pSession;
-    pkcs11_object_ptr pObject;
+    qti_pkcs11_session_ctx_ptr pSession;
+    qti_pkcs11_object_ptr pObject;
     CK_RV rv;
 
     rv = qti_pkcs11_init_check(NULL_PTR, FALSE);
@@ -63,8 +63,8 @@ CK_RV qti_pkcs11_signature_sign_init(CK_SESSION_HANDLE hSession, CK_MECHANISM_PT
 CK_RV qti_pkcs11_signature_sign(CK_SESSION_HANDLE hSession, CK_BYTE_PTR pData, CK_ULONG ulDataLen, CK_BYTE_PTR pSignature, CK_ULONG_PTR pulSignatureLen)
 {
     pkcs11_lib_ctx_ptr pLibCtx = NULL;
-    pkcs11_session_ctx_ptr pSession;
-    pkcs11_object_ptr pKey;
+    qti_pkcs11_session_ctx_ptr pSession;
+    qti_pkcs11_object_ptr pKey;
     struct ecdsa_sign sign = {0};
     CK_RV rv;
     int fd;
