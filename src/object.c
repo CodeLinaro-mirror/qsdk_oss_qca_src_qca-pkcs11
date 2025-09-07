@@ -399,7 +399,7 @@ CK_RV qti_pkcs11_object_alloc(qti_pkcs11_object_ptr * ptrObject)
 CK_RV qti_pkcs11_object_free(qti_pkcs11_slot_ctx_ptr ptrSlot, qti_pkcs11_object_ptr ptrObject)
 {
     CK_ULONG i;
-    char cwd[100];
+    char cwd[100] = {0};
     char filename[200];
 
     for (i = 0; i < QTI_PKCS11_MAX_OBJECTS_ALLOWED; i++)
@@ -820,7 +820,7 @@ static void qti_pkcs11_save_obj_store(qti_pkcs11_slot_ctx_ptr pSlot, char *objty
 {
     FILE* fp;
     char filename[200];
-    char cwd[100];
+    char cwd[100] = {0};
 
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
 	 printf("Error: Unable to save in cwd \n");
@@ -932,7 +932,7 @@ CK_RV qti_pkcs11_object_create(CK_SESSION_HANDLE hSession, CK_ATTRIBUTE_PTR ptrT
     slot_ctx = (qti_pkcs11_slot_ctx_ptr)ptrSession->slot;
 
     index = qti_pkcs11_object_alloc(&ptrObject);
-    if (ptrObject)
+    if (ptrObject && ptrClass && ptrLabel && ptrLabel->pValue)
     {
         switch (*ptrClass)
         {
@@ -1185,6 +1185,9 @@ static CK_RV qti_pkcs11_config_parse_object_file(qti_pkcs11_slot_ctx_ptr slot_ct
     (void) privkey;
 
     rv = qti_pkcs11_object_alloc(&ptrObject);
+    if (rv != CKR_OK || ptrObject == NULL)
+      return rv;
+
     if (ptrObject)
     {
         ptrObject->slot = slot;
@@ -1244,7 +1247,7 @@ CK_RV qti_pkcs11_config_load_objects(qti_pkcs11_slot_ctx_ptr pSlot)
     char filename[200];
     int j;
     CK_RV rv = CKR_GENERAL_ERROR;
-    char cwd[100];
+    char cwd[100] = {0};
 
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
 	 printf("Error: Unable to save in cwd \n");
