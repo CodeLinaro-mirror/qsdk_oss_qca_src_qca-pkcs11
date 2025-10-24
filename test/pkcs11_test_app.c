@@ -380,7 +380,7 @@ int main(int argc, char *argv[])
 	case '4':
 		if (argc >= 3) {
 			printf("Set ECDSA key_handle..\n");
-			key_handle = strtol(argv[2], NULL, 0);
+			key_handle = strtoul(argv[2], NULL, 0);
 			ret = ecdsa_set_key(key_handle);
 			if (ret)
 				printf("ecdsa_set_key failed\n");
