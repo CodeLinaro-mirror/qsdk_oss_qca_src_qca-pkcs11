@@ -1,7 +1,6 @@
 /*
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
- * All rights reserved.
- * Confidential and Proprietary - Qualcomm Technologies, Inc.
+ * SPDX-License-Identifier: ISC
  */
 
 #ifndef INIT_H_
